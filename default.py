@@ -33,7 +33,7 @@ action = params.get('action')
 
 fanart = params.get('fanart')
 
-subcats = params.get('subcats')
+subcat = params.get('subcat')
 
 url = params.get('url')
 
@@ -48,7 +48,7 @@ elif action == 'programs':
     navigator().programs(url)
 
 elif action == 'episodes':
-    navigator().episodes(url, fanart, subcats)
+    navigator().episodes(url, fanart, subcat)
 
 elif action == 'play':
     navigator().get_video(url, meta, image)
