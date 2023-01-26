@@ -28,14 +28,14 @@ if sys.version_info[0] == 3:
 else:
     from urlparse import urlparse
 
-token_url = 'https://drm.6cloud.fr/v1/customers/rtlhu/platforms/m6group_web/services/rtlhu_rtl_most/users/%s/videos/%s/upfront-token'
+token_url = 'https://drm.6cloud.fr/v1/customers/rtlhu/platforms/m6group_web/services/rtlhu_rtl_ii_extended/users/%s/%s/%s/upfront-token'
 
 class player:
     def __init__(self):
         self.uid = xbmcaddon.Addon().getSetting('userid')
 
 
-    def play(self, id, streams, image, meta):
+    def play(self, ptype, id, streams, image, meta):
         def sort_by_resolution_pattern(x):
             patterns = ['_1080p_', '_720p_', '_hd_', '_540p_', '_sd_']
             pattern = '|'.join('(%s)' %x for x in patterns)
@@ -66,7 +66,7 @@ class player:
                 'authorization': 'Bearer %s' % self.getJwtToken(),
                 'Origin': 'https://www.rtlmost.hu'}
 
-            token_source = net.request(token_url % (self.uid, id), headers=headers)
+            token_source = net.request(token_url % (self.uid, ptype, id), headers=headers)
             token_source = json.loads(token_source)
             x_dt_auth_token = py2_encode(token_source['token'])
 

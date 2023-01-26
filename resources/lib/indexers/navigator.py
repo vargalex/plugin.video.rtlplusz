@@ -71,47 +71,52 @@ class navigator:
 
 
     def root(self):
-        query = base_url + cat_link
-        categories = net.request(query)
-
-        for i in json.loads(categories):
-            self.addDirectoryItem(py2_encode(i['name']), 'programs&url=%s' % str(i['id']), '', 'DefaultTVShows.png')
-
+        data = json.loads(net.request(api_url % ('alias', 'home'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        for block in data['blocks']:
+            if block['featureId'] == 'folders_by_service' and block['title']:
+                allCategory = block['content']['items']
+                if block['content']['pagination']['nextPage']:
+                    nbPages = (block['content']['pagination']['totalItems'] - 1) // block['content']['pagination']['itemsPerPage']
+                    data = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], nbPages), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                    allCategory += data['content']['items']
+                for category in allCategory:
+                    self.addDirectoryItem(py2_encode(category['itemContent']['image']['caption']), 'programs&type=%s&id=%s' % (category['itemContent']['action']['target']['value_layout']['type'], category['itemContent']['action']['target']['value_layout']['id']), '', 'DefaultTVShows.png')
         self.endDirectory()
 
-    def programs(self, id):
-        query = base_url + prog_link
-        programs = net.request(query % id)
+    def programs(self, ptype, pid):
+        data = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
         prgs={}
-        for i in json.loads(programs):
-            prg = {}
-            title = py2_encode(i['title'])
-            try: thumb = img_link % [x['external_key'] for x in i['images'] if x['role'] == 'logo'][0]
-            except: thumb = ''
-            try: fanart = img_link % [x['external_key'] for x in i['images'] if x['role'] == 'mea'][0]
-            except: fanart = None
-            id = str(i['id'])
-            plot = py2_encode(i['description'])
-            extraInfo = ""
-            if xbmcaddon.Addon().getSetting('show_content_summary') == 'true':
-                try:
-                    if (i['count']['vi']>0):
-                        extraInfo = " (%d %s)" % (i['count']['vi'], py2_encode(i['program_type_wording']['plural']) if i['program_type_wording'] != None else 'Teljes adás')
-                    else:
-                        extraInfo = " (%d előzetes és részletek)" % (i['count']['vc'])
-                except: pass
-            prg = {'extraInfo': extraInfo, 'id': id, 'fanart': fanart, 'thumb': thumb, 'plot': plot}
-            prgs[title] = prg
+        for block in data['blocks']:
+            if block['featureId'] == 'programs_by_folder_by_service' and (not block['title'] or (block['title'] and block['title']['long'] and 'TOP' not in block['title']['long'])):
+                allItems = block['content']['items']
+                if block['content']['pagination']['nextPage']:
+                    nbPages = (block['content']['pagination']['totalItems'] - 1) // block['content']['pagination']['itemsPerPage']
+                    data = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], nbPages), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                    allItems += data['content']['items']
+                for program in allItems:
+                    prg = {}
+                    title = py2_encode(program['itemContent']['title'])
+                    try: thumb = img_link % program['itemContent']['image']['id']
+                    except: thumb = ''
+                    try: fanart = img_link % program['itemContent']['secondaryImage']['id']
+                    except: fanart = None
+                    prgType = program['itemContent']['action']['target']['value_layout']['type']
+                    prgId = program['itemContent']['action']['target']['value_layout']['id']
+                    plot = py2_encode(program['itemContent']['description'])
+                    extraInfo = ""
+                    if program['itemContent']['highlight']:
+                        extraInfo = ' [I][COLOR silver](%s)[/COLOR][/I]' % program['itemContent']['highlight']
+                    prg = {'type': prgType, 'id': prgId, 'extrainfo': extraInfo, 'fanart': fanart, 'thumb': thumb, 'plot': plot}
+                    prgs[title] = prg
+                break
         prgTitles = list(prgs.keys())
         if (xbmcaddon.Addon().getSetting('sort_programs') == 'true'):
             prgTitles.sort(key=locale.strxfrm)
         for prg in prgTitles:
-            #self.addDirectoryItem("%s[I][COLOR silver]%s[/COLOR][/I]" % (title, extraInfo), 'episodes&url=%s&fanart=%s' % (id, fanart), thumb, 'DefaultTVShows.png', Fanart=fanart, meta={'plot': plot})
-            self.addDirectoryItem("%s[I][COLOR silver]%s[/COLOR][/I]" % (prg, prgs[prg]['extraInfo']), 'episodes&url=%s&fanart=%s' % (prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
-
+            self.addDirectoryItem("%s%s" % (prg, prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
         self.endDirectory(type='tvshows')
 
-    def episodes(self, id, fanart, subcat=None):
+    def episodes(self, ptype, pid, fanart, subcat=None):
         class title_sorter:
             PATTERNS_IN_PRIORITY_ORDER = [
                 re.compile(r'^(?P<YEAR>\d{2,4})-(?P<MONTH>\d{2})-(?P<DAY>\d{2})$'),          # Date-only
@@ -152,7 +157,7 @@ class navigator:
                     return block
             return None
 
-        content = json.loads(net.request(api_url % ('program', id), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        content = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
         subcats = []
         if subcat == None:
             for block in content['blocks']:
@@ -166,7 +171,7 @@ class navigator:
 
         if len(subcats) > 1:
             for s in subcats:
-                self.addDirectoryItem(py2_encode(s['title']), 'episodes&url=%s&fanart=%s&subcat=%s' % (id, fanart, s['subcat']), '', 'DefaultFolder.png', Fanart=fanart)
+                self.addDirectoryItem(py2_encode(s['title']), 'episodes&type=%s&id=%s&fanart=%s&subcat=%s' % (ptype, pid, fanart, s['subcat']), '', 'DefaultFolder.png', Fanart=fanart)
             self.endDirectory(type='seasons')
             return
 
@@ -180,9 +185,8 @@ class navigator:
 
         episodes = currentBlock['content']['items']
         if currentBlock['content']['pagination']['nextPage']:
-            nextPage = currentBlock['content']['pagination']['nextPage']
             nbPages = (currentBlock['content']['pagination']['totalItems'] - 1) // currentBlock['content']['pagination']['itemsPerPage']
-            content = json.loads(net.request(api_block_url % ('program', id, currentBlock['id'], nbPages), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+            content = json.loads(net.request(api_block_url % (content['entity']['type'], content['entity']['id'], currentBlock['id'], nbPages), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
             episodes += content['content']['items']
 
         hidePlus = xbmcaddon.Addon().getSetting('hide_plus') == 'true'
@@ -201,12 +205,11 @@ class navigator:
 
         for item in sortedEpisodes:
             try:
-                #eligible = userIsEligibleToPlayEpisode(item)
                 eligible = item['itemContent']['action']['target']['value_layout']['id'] != 'offers'
                 if (not hidePlus) or eligible:
                     title = py2_encode(item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else content['entity']['metadata']['title'])
                     if not eligible:
-                        title = '[COLOR red]' + title + ' [B](Most+)[/B][/COLOR]'
+                        title = '[COLOR red]' + title + '[/COLOR]'
                     plot = py2_encode(item['itemContent']['description'])
                     match = re.match(r'^([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None
                     if match:
@@ -215,8 +218,9 @@ class navigator:
                         duration = '0'
                     thumb = img_link % item['itemContent']['image']['id']
                     clip_id = py2_encode(item['itemContent']['action']['target']['value_layout']['id'])
+                    clip_type = py2_encode(item['itemContent']['action']['target']['value_layout']['type'])
                     meta = {'title': title, 'plot': plot, 'duration': duration}
-                    self.addDirectoryItem(title, 'play&url=%s&meta=%s&image=%s' % (quote_plus(clip_id), quote_plus(json.dumps(meta)), thumb), thumb, 'DefaultTVShows.png', meta=meta, isFolder=False, Fanart=fanart)
+                    self.addDirectoryItem(title, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(clip_type), quote_plus(clip_id), quote_plus(json.dumps(meta)), thumb), thumb, 'DefaultTVShows.png', meta=meta, isFolder=False, Fanart=fanart)
                     hasItemsListed = True
             except:
                 pass
@@ -227,8 +231,8 @@ class navigator:
             xbmcgui.Dialog().ok('RTL+', package_change_needed)
             xbmc.executebuiltin("XBMC.Action(Back)")
 
-    def get_video(self, id, meta, image):
-        clip = net.request(api_url % ('video', id), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()})
+    def get_video(self, ptype, pid, meta, image):
+        clip = net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()})
         clip = json.loads(clip)
         try:
             assets = clip['blocks'][0]['content']['items'][0]['itemContent']['video']['assets']
@@ -236,7 +240,7 @@ class navigator:
             assets = None
         if assets is not None and assets != []:
             streams = [i['path'] for i in assets]
-            player.player().play(id, streams, image, meta)
+            player.player().play(ptype, pid, streams, image, meta)
         else:
             xbmcgui.Dialog().ok(u'Lej\u00E1tsz\u00E1s sikertelen.', package_change_needed)
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), False, xbmcgui.ListItem())

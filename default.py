@@ -35,23 +35,25 @@ fanart = params.get('fanart')
 
 subcat = params.get('subcat')
 
-url = params.get('url')
+ptype = params.get('type')
 
 image = params.get('image')
 
 meta = params.get('meta')
 
+pid = params.get('id')
+
 if action == None:
     navigator().root()
 
 elif action == 'programs':
-    navigator().programs(url)
+    navigator().programs(ptype, pid)
 
 elif action == 'episodes':
-    navigator().episodes(url, fanart, subcat)
+    navigator().episodes(ptype, pid, fanart, subcat)
 
 elif action == 'play':
-    navigator().get_video(url, meta, image)
+    navigator().get_video(ptype, pid, meta, image)
 
 elif action == 'drmSettings':
     import xbmcaddon
