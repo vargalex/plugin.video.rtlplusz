@@ -47,7 +47,7 @@ deviceID_url = 'https://e.m6web.fr/info?customer=rtlhu'
 profile_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/%s/profiles'
 api_base = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-3/%s/%s/'
 api_url = api_base + 'layout?nbPages=1'
-api_block_url = api_base + 'block/%s?nbPages=%d&page=2'
+api_block_url = api_base + 'block/%s?nbPages=%d&page=%d'
 
 class navigator:
     def __init__(self):
@@ -74,13 +74,23 @@ class navigator:
         data = json.loads(net.request(api_url % ('alias', 'home'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
         for block in data['blocks']:
             if block['featureId'] == 'folders_by_service' and block['title']:
+                xbmcgui.Dialog().notification("RTL+", block['title']['long'])
                 allCategory = block['content']['items']
                 if block['content']['pagination']['nextPage']:
-                    nbPages = (block['content']['pagination']['totalItems'] - 1) // block['content']['pagination']['itemsPerPage']
-                    data = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], nbPages), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-                    allCategory += data['content']['items']
+                    progressDialog = xbmcgui.DialogProgress()
+                    progressDialog.create("RTL Most", "Kategóriák letöltése folyamatban")
+                    nbPages = (block['content']['pagination']['totalItems'] + block['content']['pagination']['itemsPerPage'] -1) // block['content']['pagination']['itemsPerPage']
+                    for page in range(2, nbPages + 1):
+                        currItems = min(page * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
+                        progressDialog.update(round(page/nbPages*100), 'Kategóriák letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
+                        pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], 1, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                        allCategory += pageData['content']['items']
+                        if progressDialog.iscanceled():
+                            break
+                    progressDialog.close()
                 for category in allCategory:
                     self.addDirectoryItem(py2_encode(category['itemContent']['image']['caption']), 'programs&type=%s&id=%s' % (category['itemContent']['action']['target']['value_layout']['type'], category['itemContent']['action']['target']['value_layout']['id']), '', 'DefaultTVShows.png')
+                break
         self.endDirectory()
 
     def programs(self, ptype, pid):
@@ -90,9 +100,18 @@ class navigator:
             if block['featureId'] == 'programs_by_folder_by_service' and (not block['title'] or (block['title'] and block['title']['long'] and 'TOP' not in block['title']['long'])):
                 allItems = block['content']['items']
                 if block['content']['pagination']['nextPage']:
-                    nbPages = (block['content']['pagination']['totalItems'] - 1) // block['content']['pagination']['itemsPerPage']
-                    data = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], nbPages), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-                    allItems += data['content']['items']
+                    progressDialog = None
+                    nbPages = (block['content']['pagination']['totalItems'] + block['content']['pagination']['itemsPerPage'] - 1) // block['content']['pagination']['itemsPerPage']
+                    progressDialog = xbmcgui.DialogProgress()
+                    progressDialog.create("RTL Most", "Programok letöltése folyamatban")
+                    for page in range(2, nbPages + 1):
+                        currItems = min(page * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
+                        progressDialog.update(round(page/nbPages*100), 'Programok letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
+                        pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], 1, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                        allItems += pageData['content']['items']
+                        if progressDialog.iscanceled():
+                            break
+                    progressDialog.close()
                 for program in allItems:
                     prg = {}
                     title = py2_encode(program['itemContent']['title'])
@@ -185,10 +204,17 @@ class navigator:
 
         episodes = currentBlock['content']['items']
         if currentBlock['content']['pagination']['nextPage']:
-            nbPages = (currentBlock['content']['pagination']['totalItems'] - 1) // currentBlock['content']['pagination']['itemsPerPage']
-            content = json.loads(net.request(api_block_url % (content['entity']['type'], content['entity']['id'], currentBlock['id'], nbPages), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-            episodes += content['content']['items']
-
+            nbPages = (currentBlock['content']['pagination']['totalItems'] + currentBlock['content']['pagination']['itemsPerPage'] - 1) // currentBlock['content']['pagination']['itemsPerPage']
+            progressDialog = xbmcgui.DialogProgress()
+            progressDialog.create("RTL Most", "Epizódlista letöltése folyamatban")
+            for page in range(2, nbPages + 1):
+                currItems = min(page * currentBlock['content']['pagination']['itemsPerPage'], currentBlock['content']['pagination']['totalItems'])
+                progressDialog.update(round(page/nbPages*100), 'Epizódlista letöltése folyamatban (' + str(currItems) + '/' + str(currentBlock['content']['pagination']['totalItems']) + ')')
+                subcontent = json.loads(net.request(api_block_url % (content['entity']['type'], content['entity']['id'], currentBlock['id'], 1, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                episodes += subcontent['content']['items']
+                if progressDialog and progressDialog.iscanceled():
+                    break
+            progressDialog.close()
         hidePlus = xbmcaddon.Addon().getSetting('hide_plus') == 'true'
 
         sortedEpisodes = episodes
@@ -215,7 +241,11 @@ class navigator:
                     if match:
                         duration = str(int(match.group(1))*60 + int(match.group(2)))
                     else:
-                        duration = '0'
+                        match = re.match(r'^([0-9]*):([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None
+                        if match:
+                            duration = str(int(match.group(1))*60*60 + int(match.group(2))*60 + int(match.group(3)))
+                        else:
+                            duration = '0'
                     thumb = img_link % item['itemContent']['image']['id']
                     clip_id = py2_encode(item['itemContent']['action']['target']['value_layout']['id'])
                     clip_type = py2_encode(item['itemContent']['action']['target']['value_layout']['type'])
