@@ -46,7 +46,8 @@ package_change_needed = 'A hozzáféréshez nagyobb csomagra váltás szüksége
 deviceID_url = 'https://e.m6web.fr/info?customer=rtlhu'
 profile_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/%s/profiles'
 api_base = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-3/%s/%s/'
-api_url = api_base + 'layout?nbPages=1'
+defaultNumberOfPages = 2
+api_url = api_base + 'layout?nbPages=%d' % defaultNumberOfPages
 api_block_url = api_base + 'block/%s?nbPages=%d&page=%d'
 
 class navigator:
@@ -80,10 +81,10 @@ class navigator:
                     progressDialog = xbmcgui.DialogProgress()
                     progressDialog.create("RTL Most", "Kategóriák letöltése folyamatban")
                     nbPages = (block['content']['pagination']['totalItems'] + block['content']['pagination']['itemsPerPage'] -1) // block['content']['pagination']['itemsPerPage']
-                    for page in range(2, nbPages + 1):
-                        currItems = min(page * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
+                    for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
+                        currItems = min((page + defaultNumberOfPages + 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
                         progressDialog.update(round(page/nbPages*100), 'Kategóriák letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
-                        pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], 1, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                        pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
                         allCategory += pageData['content']['items']
                         if progressDialog.iscanceled():
                             break
@@ -104,10 +105,10 @@ class navigator:
                     nbPages = (block['content']['pagination']['totalItems'] + block['content']['pagination']['itemsPerPage'] - 1) // block['content']['pagination']['itemsPerPage']
                     progressDialog = xbmcgui.DialogProgress()
                     progressDialog.create("RTL Most", "Programok letöltése folyamatban")
-                    for page in range(2, nbPages + 1):
-                        currItems = min(page * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
+                    for page in range(defaultNumberOfPages+1, nbPages + 1, defaultNumberOfPages):
+                        currItems = min((page + defaultNumberOfPages - 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
                         progressDialog.update(round(page/nbPages*100), 'Programok letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
-                        pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], 1, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                        pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
                         allItems += pageData['content']['items']
                         if progressDialog.iscanceled():
                             break
@@ -207,10 +208,10 @@ class navigator:
             nbPages = (currentBlock['content']['pagination']['totalItems'] + currentBlock['content']['pagination']['itemsPerPage'] - 1) // currentBlock['content']['pagination']['itemsPerPage']
             progressDialog = xbmcgui.DialogProgress()
             progressDialog.create("RTL Most", "Epizódlista letöltése folyamatban")
-            for page in range(2, nbPages + 1):
-                currItems = min(page * currentBlock['content']['pagination']['itemsPerPage'], currentBlock['content']['pagination']['totalItems'])
+            for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
+                currItems = min((page + defaultNumberOfPages - 1) * currentBlock['content']['pagination']['itemsPerPage'], currentBlock['content']['pagination']['totalItems'])
                 progressDialog.update(round(page/nbPages*100), 'Epizódlista letöltése folyamatban (' + str(currItems) + '/' + str(currentBlock['content']['pagination']['totalItems']) + ')')
-                subcontent = json.loads(net.request(api_block_url % (content['entity']['type'], content['entity']['id'], currentBlock['id'], 1, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                subcontent = json.loads(net.request(api_block_url % (content['entity']['type'], content['entity']['id'], currentBlock['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
                 episodes += subcontent['content']['items']
                 if progressDialog and progressDialog.iscanceled():
                     break
