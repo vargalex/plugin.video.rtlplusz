@@ -85,7 +85,10 @@ class navigator:
                         currItems = min((page + defaultNumberOfPages + 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
                         progressDialog.update(round(page/nbPages*100), 'Kategóriák letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
                         pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-                        allCategory += pageData['content']['items']
+                        try:
+                            allCategory += pageData['content']['items']
+                        except:
+                            pass
                         if progressDialog.iscanceled():
                             break
                     progressDialog.close()
@@ -109,7 +112,10 @@ class navigator:
                         currItems = min((page + defaultNumberOfPages - 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
                         progressDialog.update(round(page/nbPages*100), 'Programok letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
                         pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-                        allItems += pageData['content']['items']
+                        try:
+                            allItems += pageData['content']['items']
+                        except:
+                            pass
                         if progressDialog.iscanceled():
                             break
                     progressDialog.close()
@@ -212,7 +218,10 @@ class navigator:
                 currItems = min((page + defaultNumberOfPages - 1) * currentBlock['content']['pagination']['itemsPerPage'], currentBlock['content']['pagination']['totalItems'])
                 progressDialog.update(round(page/nbPages*100), 'Epizódlista letöltése folyamatban (' + str(currItems) + '/' + str(currentBlock['content']['pagination']['totalItems']) + ')')
                 subcontent = json.loads(net.request(api_block_url % (content['entity']['type'], content['entity']['id'], currentBlock['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-                episodes += subcontent['content']['items']
+                try:
+                    episodes += subcontent['content']['items']
+                except:
+                    pass
                 if progressDialog and progressDialog.iscanceled():
                     break
             progressDialog.close()
