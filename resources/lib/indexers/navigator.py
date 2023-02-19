@@ -59,8 +59,9 @@ class navigator:
         if not (self.username and self.password) != '':
             if xbmcgui.Dialog().ok('RTL+', u'A kieg\u00E9sz\u00EDt\u0151 haszn\u00E1lat\u00E1hoz add meg a bejelentkez\u00E9si adataidat.'):
                 xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
-                addon(addon().getAddonInfo('id')).openSettings()                
-            sys.exit(0)
+                addon(addon().getAddonInfo('id')).openSettings()
+            self.username = xbmcaddon.Addon().getSetting('email').strip()
+            self.password = xbmcaddon.Addon().getSetting('password').strip()
         if xbmcaddon.Addon().getSetting('deviceid') == "":
             r = net.request(deviceID_url)
             jsonparse = json.loads(r)
