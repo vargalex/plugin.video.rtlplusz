@@ -91,7 +91,8 @@ class navigator:
                             break
                     progressDialog.close()
                 for category in allCategory:
-                    self.addDirectoryItem(py2_encode(category['itemContent']['image']['caption']), 'programs&type=%s&id=%s' % (category['itemContent']['action']['target']['value_layout']['type'], category['itemContent']['action']['target']['value_layout']['id']), '', 'DefaultTVShows.png')
+                    if category['itemContent']['id'] != 'ec439707a9ef0bfc8f74a020859513ab1c022b91':
+                        self.addDirectoryItem(py2_encode(category['itemContent']['image']['caption']), 'programs&type=%s&id=%s' % (category['itemContent']['action']['target']['value_layout']['type'], category['itemContent']['action']['target']['value_layout']['id']), '', 'DefaultTVShows.png')
                 break
         self.endDirectory()
 
