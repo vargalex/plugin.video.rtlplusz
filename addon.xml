@@ -12,7 +12,8 @@
 		<language>hu</language>
 		<platform>all</platform>
 		<news>[B]1.0.0[/B]
-- RTL Most átnevezve RTL+-ra
+		- RTL Most átnevezve RTL+-ra
+		</news>
 		<assets>
 		  <icon>icon.png</icon>
 		  <fanart>fanart.jpg</fanart>
