@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 '''
-    RTL Most Add-on
-    Copyright (C) 2018
+    RTL+ Add-on
+    Copyright (C) 2023
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,25 +33,27 @@ action = params.get('action')
 
 fanart = params.get('fanart')
 
-subcats = params.get('subcats')
+subcat = params.get('subcat')
 
-url = params.get('url')
+ptype = params.get('type')
 
 image = params.get('image')
 
 meta = params.get('meta')
 
+pid = params.get('id')
+
 if action == None:
     navigator().root()
 
 elif action == 'programs':
-    navigator().programs(url)
+    navigator().programs(ptype, pid)
 
 elif action == 'episodes':
-    navigator().episodes(url, fanart, subcats)
+    navigator().episodes(ptype, pid, fanart, subcat)
 
 elif action == 'play':
-    navigator().get_video(url, meta, image)
+    navigator().get_video(ptype, pid, meta, image)
 
 elif action == 'drmSettings':
     import xbmcaddon

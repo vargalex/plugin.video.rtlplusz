@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 '''
-    RTL Most Add-on
-    Copyright (C) 2018
+    RTL+ Add-on
+    Copyright (C) 2023
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,18 +38,14 @@ sysaddon = sys.argv[0] ; syshandle = int(sys.argv[1])
 addon = xbmcaddon.Addon
 addonFanart = addon().getAddonInfo('fanart')
 
-base_url = 'https://pc.middleware.6play.fr/6play/v2/platforms/m6group_web/services/rtlhu_rtl_most'
 img_link = 'https://images.6play.fr/v2/images/%s/raw'
-cat_link = '/folders?limit=999&offset=0'
-prog_link = '/folders/%s/programs?limit=999&offset=0&csa=5&with=parentcontext'
-episode_link = '/programs/%s/videos?csa=5&with=clips,freemiumpacks&type=vi,vc,playlist&limit=999&offset=0&subcat=%s&sort=subcat'
-episode_subcat_link = '/programs/%s?with=links,subcats,rights'
-video_link = '/videos/%s?csa=5&with=clips,freemiumpacks,program_images,service_display_images'
-freemiumsubscriptions_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/%s/freemiumsubscriptions'
-freemium_subscription_needed_errormsg = 'A hozzáféréshez RTL Most+ előfizetés szükséges.\nRészletek: https://www.rtlmost.hu/premium'
+package_change_needed = 'A hozzáféréshez nagyobb csomagra váltás szükséges.\nRészletek: https://rtl.hu/rtlplusz/szolgaltatasok'
 deviceID_url = 'https://e.m6web.fr/info?customer=rtlhu'
 profile_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/%s/profiles'
-video_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-3/video/%s/layout?nbPages=2'
+api_base = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-3/%s/%s/'
+defaultNumberOfPages = 2
+api_url = api_base + 'layout?nbPages=%d' % defaultNumberOfPages
+api_block_url = api_base + 'block/%s?nbPages=%d&page=%d'
 
 class navigator:
     def __init__(self):
@@ -61,7 +57,7 @@ class navigator:
         self.password = xbmcaddon.Addon().getSetting('password').strip()
 
         if not (self.username and self.password) != '':
-            if xbmcgui.Dialog().ok('RTL Most', u'A kieg\u00E9sz\u00EDt\u0151 haszn\u00E1lat\u00E1hoz add meg a bejelentkez\u00E9si adataidat.'):
+            if xbmcgui.Dialog().ok('RTL+', u'A kieg\u00E9sz\u00EDt\u0151 haszn\u00E1lat\u00E1hoz add meg a bejelentkez\u00E9si adataidat.'):
                 xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
                 addon(addon().getAddonInfo('id')).openSettings()                
             sys.exit(0)
@@ -73,50 +69,77 @@ class navigator:
 
 
     def root(self):
-        query = base_url + cat_link
-        categories = net.request(query)
-
-        for i in json.loads(categories):
-            self.addDirectoryItem(py2_encode(i['name']), 'programs&url=%s' % str(i['id']), '', 'DefaultTVShows.png')
-
+        data = json.loads(net.request(api_url % ('alias', 'home'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        for block in data['blocks']:
+            if block['featureId'] == 'folders_by_service' and block['title']:
+                xbmcgui.Dialog().notification("RTL+", block['title']['long'])
+                allCategory = block['content']['items']
+                if block['content']['pagination']['nextPage']:
+                    progressDialog = xbmcgui.DialogProgress()
+                    progressDialog.create("RTL+", "Kategóriák letöltése folyamatban")
+                    nbPages = (block['content']['pagination']['totalItems'] + block['content']['pagination']['itemsPerPage'] -1) // block['content']['pagination']['itemsPerPage']
+                    for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
+                        currItems = min((page + defaultNumberOfPages + 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
+                        progressDialog.update(round(page/nbPages*100), 'Kategóriák letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
+                        pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                        try:
+                            allCategory += pageData['content']['items']
+                        except:
+                            pass
+                        if progressDialog.iscanceled():
+                            break
+                    progressDialog.close()
+                for category in allCategory:
+                    self.addDirectoryItem(py2_encode(category['itemContent']['image']['caption']), 'programs&type=%s&id=%s' % (category['itemContent']['action']['target']['value_layout']['type'], category['itemContent']['action']['target']['value_layout']['id']), '', 'DefaultTVShows.png')
+                break
         self.endDirectory()
 
-    def programs(self, id):
-        query = base_url + prog_link
-        programs = net.request(query % id)
+    def programs(self, ptype, pid):
+        data = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
         prgs={}
-        for i in json.loads(programs):
-            prg = {}
-            title = py2_encode(i['title'])
-            try: thumb = img_link % [x['external_key'] for x in i['images'] if x['role'] == 'logo'][0]
-            except: thumb = ''
-            try: fanart = img_link % [x['external_key'] for x in i['images'] if x['role'] == 'mea'][0]
-            except: fanart = None
-            id = str(i['id'])
-            plot = py2_encode(i['description'])
-            extraInfo = ""
-            if xbmcaddon.Addon().getSetting('show_content_summary') == 'true':
-                try:
-                    if (i['count']['vi']>0):
-                        extraInfo = " (%d %s)" % (i['count']['vi'], py2_encode(i['program_type_wording']['plural']) if i['program_type_wording'] != None else 'Teljes adás')
-                    else:
-                        extraInfo = " (%d előzetes és részletek)" % (i['count']['vc'])
-                except: pass
-            prg = {'extraInfo': extraInfo, 'id': id, 'fanart': fanart, 'thumb': thumb, 'plot': plot}
-            prgs[title] = prg
+        for block in data['blocks']:
+            if block['featureId'] == 'programs_by_folder_by_service' and (not block['title'] or (block['title'] and block['title']['long'] and 'TOP' not in block['title']['long'])):
+                allItems = block['content']['items']
+                if block['content']['pagination']['nextPage']:
+                    progressDialog = None
+                    nbPages = (block['content']['pagination']['totalItems'] + block['content']['pagination']['itemsPerPage'] - 1) // block['content']['pagination']['itemsPerPage']
+                    progressDialog = xbmcgui.DialogProgress()
+                    progressDialog.create("RTL+", "Programok letöltése folyamatban")
+                    for page in range(defaultNumberOfPages+1, nbPages + 1, defaultNumberOfPages):
+                        currItems = min((page + defaultNumberOfPages - 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
+                        progressDialog.update(round(page/nbPages*100), 'Programok letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
+                        pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                        try:
+                            allItems += pageData['content']['items']
+                        except:
+                            pass
+                        if progressDialog.iscanceled():
+                            break
+                    progressDialog.close()
+                for program in allItems:
+                    prg = {}
+                    title = py2_encode(program['itemContent']['title'])
+                    try: thumb = img_link % program['itemContent']['image']['id']
+                    except: thumb = ''
+                    try: fanart = img_link % program['itemContent']['secondaryImage']['id']
+                    except: fanart = None
+                    prgType = program['itemContent']['action']['target']['value_layout']['type']
+                    prgId = program['itemContent']['action']['target']['value_layout']['id']
+                    plot = py2_encode(program['itemContent']['description'])
+                    extraInfo = ""
+                    if program['itemContent']['highlight']:
+                        extraInfo = ' [I][COLOR silver](%s)[/COLOR][/I]' % program['itemContent']['highlight']
+                    prg = {'type': prgType, 'id': prgId, 'extrainfo': extraInfo, 'fanart': fanart, 'thumb': thumb, 'plot': plot}
+                    prgs[title] = prg
+                break
         prgTitles = list(prgs.keys())
         if (xbmcaddon.Addon().getSetting('sort_programs') == 'true'):
             prgTitles.sort(key=locale.strxfrm)
         for prg in prgTitles:
-            #self.addDirectoryItem("%s[I][COLOR silver]%s[/COLOR][/I]" % (title, extraInfo), 'episodes&url=%s&fanart=%s' % (id, fanart), thumb, 'DefaultTVShows.png', Fanart=fanart, meta={'plot': plot})
-            self.addDirectoryItem("%s[I][COLOR silver]%s[/COLOR][/I]" % (prg, prgs[prg]['extraInfo']), 'episodes&url=%s&fanart=%s' % (prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
-
+            self.addDirectoryItem("%s%s" % (prg, prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
         self.endDirectory(type='tvshows')
 
-    def episodes(self, id, fanart, subcats=None):
-        try: myfreemiumcodes = json.loads(xbmcaddon.Addon().getSetting('myfreemiumcodes'))
-        except: myfreemiumcodes = {}
-
+    def episodes(self, ptype, pid, fanart, subcat=None):
         class title_sorter:
             PATTERNS_IN_PRIORITY_ORDER = [
                 re.compile(r'^(?P<YEAR>\d{2,4})-(?P<MONTH>\d{2})-(?P<DAY>\d{2})$'),          # Date-only
@@ -132,7 +155,7 @@ class navigator:
             @classmethod
             def find_first_common_pattern(cls, episodes):
                 for pattern in cls.PATTERNS_IN_PRIORITY_ORDER:
-                    if all([ pattern.match(ep.get('title', '')) is not None for ep in episodes ]):
+                    if all([ pattern.match(ep['itemContent']['extraTitle'] if ep['itemContent']['extraTitle'] != None else '') is not None for ep in episodes ]):
                         return pattern
                 return None
 
@@ -143,56 +166,62 @@ class navigator:
             @classmethod
             def sorted(cls, episodes, reverse):
                 def key(episode):
-                    m = pattern.match(episode.get('title', ''))
+                    m = pattern.match(episode['itemContent']['extraTitle'] if episode['itemContent']['extraTitle'] != None else '')
                     return tuple(int(i) for i in m.groups())
                 pattern = cls.find_first_common_pattern(episodes)
                 return sorted(episodes, key=lambda ep: key(ep), reverse=reverse)
 
         def getClipID(item):
-            return int(item['clips'][0]['id'])
-        
-        def getEpisode(item):
-            return int(item['clips'][0]['product']['episode'])
+            return py2_encode(item['itemContent']['action']['target']['value_layout']['id'])
 
-        def allEpisodeFilled(episodes):
-            allFilled = True
-            for item in episodes:
-                if (item['clips'][0]['product']['episode'] is None):
-                    allFilled = False
-            return allFilled
+        def getSubcatBlock(content):
+            for block in content['blocks']:
+                if block['id'].split('--')[1] == subcat:
+                    return block
+            return None
 
-        def episodeIsMostPlus(episode):
-            return (('freemium_products' in item) and (len(item['freemium_products']) > 0))
+        content = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        subcats = []
+        if subcat == None:
+            for block in content['blocks']:
+                if block['featureId'] in ['videos_by_subcat_by_program', 'videos_by_season_by_program']:
+                    subcats.append({'title': block['title']['long'], 'subcat': block['id'].split('--')[1]})
 
-        def userIsEligibleToPlayEpisode(episode):
-            if not episodeIsMostPlus(episode):
-                return True
-            for product in item['freemium_products']:
-                code = product["code"]
-                id = product["id"]
-                if code in myfreemiumcodes and id in myfreemiumcodes[code]:
-                    return True
-            return False
-
-        try: subcats = json.loads(subcats)
-        except: pass
-        if subcats == None:
-            query = base_url + episode_subcat_link
-            subcats = net.request(query % id)
-            subcats = [i for i in json.loads(subcats)['program_subcats'] if 'id' in i]
+        if len(subcats) == 0:
+            for block in content['blocks']:
+                if block['featureId'] == 'info_by_program':
+                    subcats.append({'title': '', 'subcat': block['id'].split('--')[1]})
 
         if len(subcats) > 1:
-            # the show has multiple seasons or subcategories, list these, and let the user to choose one
-            for item in subcats:
-                str(item['id'])
-                self.addDirectoryItem(py2_encode(item['title']), 'episodes&url=%s&fanart=%s&subcats=%s' % (id, fanart, quote_plus(json.dumps([item]))), '', 'DefaultFolder.png', Fanart=fanart)
+            for s in subcats:
+                self.addDirectoryItem(py2_encode(s['title']), 'episodes&type=%s&id=%s&fanart=%s&subcat=%s' % (ptype, pid, fanart, s['subcat']), '', 'DefaultFolder.png', Fanart=fanart)
             self.endDirectory(type='seasons')
             return
 
-        query = base_url + episode_link
-        episodes = net.request(query % (id, str(subcats[0]['id'])))
-        episodes = json.loads(episodes)
+        if subcat == None and len(subcats) == 1:
+            subcat = subcats[0]['subcat']
 
+        currentBlock = getSubcatBlock(content)
+
+        if currentBlock == None:
+            return
+
+        episodes = currentBlock['content']['items']
+        if currentBlock['content']['pagination']['nextPage']:
+            nbPages = (currentBlock['content']['pagination']['totalItems'] + currentBlock['content']['pagination']['itemsPerPage'] - 1) // currentBlock['content']['pagination']['itemsPerPage']
+            progressDialog = xbmcgui.DialogProgress()
+            progressDialog.create("RTL+", "Epizódlista letöltése folyamatban")
+            for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
+                currItems = min((page + defaultNumberOfPages - 1) * currentBlock['content']['pagination']['itemsPerPage'], currentBlock['content']['pagination']['totalItems'])
+                progressDialog.update(round(page/nbPages*100), 'Epizódlista letöltése folyamatban (' + str(currItems) + '/' + str(currentBlock['content']['pagination']['totalItems']) + ')')
+                subcontent = json.loads(net.request(api_block_url % (content['entity']['type'], content['entity']['id'], currentBlock['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                try:
+                    episodes += subcontent['content']['items']
+                except:
+                    pass
+                if progressDialog and progressDialog.iscanceled():
+                    break
+            progressDialog.close()
         hidePlus = xbmcaddon.Addon().getSetting('hide_plus') == 'true'
 
         sortedEpisodes = episodes
@@ -200,30 +229,35 @@ class navigator:
             reverseSorting = False
             if (xbmcaddon.Addon().getSetting('sort_reverse') == 'true'):
                 reverseSorting = True
-            if (allEpisodeFilled(episodes)):
-                sortedEpisodes = sorted(episodes, key=getEpisode, reverse=reverseSorting)
-            elif title_sorter.all_match_same_pattern(episodes):
+            if title_sorter.all_match_same_pattern(episodes):
                 sortedEpisodes = title_sorter.sorted(episodes, reverse=reverseSorting)
             else:
                 sortedEpisodes = sorted(episodes, key=getClipID, reverse=reverseSorting)
 
         hasItemsListed = False
+
         for item in sortedEpisodes:
             try:
-                eligible = userIsEligibleToPlayEpisode(item)
+                eligible = item['itemContent']['action']['target']['value_layout']['id'] != 'offers'
                 if (not hidePlus) or eligible:
-                    title = py2_encode(item['title'])
+                    title = py2_encode(item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else content['entity']['metadata']['title'])
                     if not eligible:
-                        title = '[COLOR red]' + title + ' [B](Most+)[/B][/COLOR]'
-                    plot = py2_encode(item['description'])
-                    duration = str(item['duration'])
-                    try: thumb = img_link % [i['external_key'] for i in item['images'] if i['role'] == 'vignette'][0]
-                    except: thumb = img_link % item['display_image']['external_key']
-                    thumb = thumb
-                    assets = item['clips'][0].get('assets')
-                    clip_id = py2_encode(item['id'])
+                        title = '[COLOR red]' + title + '[/COLOR]'
+                    plot = py2_encode(item['itemContent']['description'])
+                    match = re.match(r'^([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None
+                    if match:
+                        duration = str(int(match.group(1))*60 + int(match.group(2)))
+                    else:
+                        match = re.match(r'^([0-9]*):([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None
+                        if match:
+                            duration = str(int(match.group(1))*60*60 + int(match.group(2))*60 + int(match.group(3)))
+                        else:
+                            duration = '0'
+                    thumb = img_link % item['itemContent']['image']['id']
+                    clip_id = py2_encode(item['itemContent']['action']['target']['value_layout']['id'])
+                    clip_type = py2_encode(item['itemContent']['action']['target']['value_layout']['type'])
                     meta = {'title': title, 'plot': plot, 'duration': duration}
-                    self.addDirectoryItem(title, 'play&url=%s&meta=%s&image=%s' % (quote_plus(clip_id), quote_plus(json.dumps(meta)), thumb), thumb, 'DefaultTVShows.png', meta=meta, isFolder=False, Fanart=fanart)
+                    self.addDirectoryItem(title, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(clip_type), quote_plus(clip_id), quote_plus(json.dumps(meta)), thumb), thumb, 'DefaultTVShows.png', meta=meta, isFolder=False, Fanart=fanart)
                     hasItemsListed = True
             except:
                 pass
@@ -231,12 +265,11 @@ class navigator:
         self.endDirectory(type='episodes')
 
         if hidePlus and not hasItemsListed and len(sortedEpisodes) > 0:
-            xbmcgui.Dialog().ok('RTL Most', freemium_subscription_needed_errormsg)
+            xbmcgui.Dialog().ok('RTL+', package_change_needed)
             xbmc.executebuiltin("XBMC.Action(Back)")
 
-
-    def get_video(self, id, meta, image):
-        clip = net.request(video_url % id, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()})
+    def get_video(self, ptype, pid, meta, image):
+        clip = net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()})
         clip = json.loads(clip)
         try:
             assets = clip['blocks'][0]['content']['items'][0]['itemContent']['video']['assets']
@@ -244,36 +277,10 @@ class navigator:
             assets = None
         if assets is not None and assets != []:
             streams = [i['path'] for i in assets]
-            player.player().play(id, streams, image, meta)
+            player.player().play(ptype, pid, streams, image, meta)
         else:
-            xbmcgui.Dialog().ok(u'Lej\u00E1tsz\u00E1s sikertelen.', freemium_subscription_needed_errormsg)
+            xbmcgui.Dialog().ok(u'Lej\u00E1tsz\u00E1s sikertelen.', package_change_needed)
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), False, xbmcgui.ListItem())
-
-
-    def myFreemiumCodes(self, packSubscriptions):
-        my_freemium_product_codes = dict()
-        for subscription in packSubscriptions:
-            for product in subscription.get("freemium_products", []):
-                code = product["code"]
-                id = product["id"]
-                if code not in my_freemium_product_codes:
-                    # list: if the account has multiple subscriptions, they might provide
-                    # the same code under different ids (not very likely, but let's prepare)
-                    my_freemium_product_codes[code] = list()
-                my_freemium_product_codes[code].append(id)
-        return my_freemium_product_codes
-
-
-    def addAuthenticationHeaders(self, headers = dict()):
-        headers.update({
-            'x-6play-freemium': '1',
-            'x-auth-gigya-uid': xbmcaddon.Addon().getSetting('userid'),
-            'x-auth-gigya-signature': xbmcaddon.Addon().getSetting('signature'),
-            'x-auth-gigya-signature-timestamp': xbmcaddon.Addon().getSetting('s.timestamp'),
-            'Origin': 'https://www.rtlmost.hu'
-        })
-        return headers
-
 
     def Login(self):
         t1 = int(xbmcaddon.Addon().getSetting('s.timestamp'))
@@ -306,7 +313,6 @@ class navigator:
         xbmcaddon.Addon().setSetting('signature', jsonparse['UIDSignature'])
         xbmcaddon.Addon().setSetting('s.timestamp', jsonparse['signatureTimestamp'])
         xbmcaddon.Addon().setSetting('loggedin', 'true')
-        xbmcaddon.Addon().setSetting('myfreemiumcodes', json.dumps(self.myFreemiumCodes(jsonparse['data']['packSubscriptions'])))
 
         r = net.request(deviceID_url)
         jsonparse = json.loads(r)
@@ -322,12 +328,11 @@ class navigator:
 
     def Logout(self):
         dialog = xbmcgui.Dialog()
-        if 1 == dialog.yesno(u'RTL Most kijelentkez\u00E9s', u'Val\u00F3ban ki szeretn\u00E9l jelentkezni?', '', ''):
+        if 1 == dialog.yesno(u'RTL+ kijelentkez\u00E9s', u'Val\u00F3ban ki szeretn\u00E9l jelentkezni?', '', ''):
             xbmcaddon.Addon().setSetting('userid', '')
             xbmcaddon.Addon().setSetting('signature', '')
             xbmcaddon.Addon().setSetting('s.timestamp', '0')
             xbmcaddon.Addon().setSetting('loggedin', 'false')
-            xbmcaddon.Addon().setSetting('myfreemiumcodes', '')
             xbmcaddon.Addon().setSetting('email', '')
             xbmcaddon.Addon().setSetting('password', '')
             xbmcaddon.Addon().setSetting('deviceid', '')
@@ -335,7 +340,7 @@ class navigator:
             xbmcaddon.Addon().setSetting('deviceid', '')
             xbmc.executebuiltin("XBMC.Container.Update(path,replace)")
             xbmc.executebuiltin("XBMC.ActivateWindow(Home)")
-            dialog.ok('RTL Most', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
+            dialog.ok('RTL+', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
         
         return
 

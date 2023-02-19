@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 '''
-    RTL Most Add-on
-    Copyright (C) 2018
+    RTL+ Add-on
+    Copyright (C) 2023
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,14 +28,14 @@ if sys.version_info[0] == 3:
 else:
     from urlparse import urlparse
 
-token_url = 'https://drm.6cloud.fr/v1/customers/rtlhu/platforms/m6group_web/services/rtlhu_rtl_most/users/%s/videos/%s/upfront-token'
+token_url = 'https://drm.6cloud.fr/v1/customers/rtlhu/platforms/m6group_web/services/rtlhu_rtl_ii_extended/users/%s/%s/%s/upfront-token'
 
 class player:
     def __init__(self):
         self.uid = xbmcaddon.Addon().getSetting('userid')
 
 
-    def play(self, id, streams, image, meta):
+    def play(self, ptype, id, streams, image, meta):
         def sort_by_resolution_pattern(x):
             patterns = ['_1080p_', '_720p_', '_hd_', '_540p_', '_sd_']
             pattern = '|'.join('(%s)' %x for x in patterns)
@@ -66,7 +66,7 @@ class player:
                 'authorization': 'Bearer %s' % self.getJwtToken(),
                 'Origin': 'https://www.rtlmost.hu'}
 
-            token_source = net.request(token_url % (self.uid, id), headers=headers)
+            token_source = net.request(token_url % (self.uid, ptype, id), headers=headers)
             token_source = json.loads(token_source)
             x_dt_auth_token = py2_encode(token_source['token'])
 
@@ -117,7 +117,7 @@ class player:
             li = xbmcgui.ListItem(path=stream_url)
 
         if li is None:
-            xbmcgui.Dialog().notification(u'Lej\u00E1tsz\u00E1s sikertelen. DRM v\u00E9dett m\u0171sor.', 'RTL Most', time=8000)
+            xbmcgui.Dialog().notification(u'Lej\u00E1tsz\u00E1s sikertelen. DRM v\u00E9dett m\u0171sor.', 'RTL+', time=8000)
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), False, xbmcgui.ListItem())
             return
 
@@ -134,24 +134,24 @@ class player:
             if m:
                 errMsg = ""
                 try:
-                    errMsg = "RTLMost: cannot base64 decode the group 2: %s" % m.group(2)
+                    errMsg = "RTL+: cannot base64 decode the group 2: %s" % m.group(2)
                     decodedToken=base64.b64decode(m.group(2)+"===")
                     if sys.version_info[0] == 3:
-                        errMsg = "RTLMost: utf-8 decode error: %s" % decodedToken
+                        errMsg = "RTL+: utf-8 decode error: %s" % decodedToken
                         decodedToken = decodedToken.decode("utf-8", "ignore")
-                    errMsg = "RTLMost: decodedToken is not a json object: %s" % decodedToken
+                    errMsg = "RTL+: decodedToken is not a json object: %s" % decodedToken
                     jsObj = json.loads(decodedToken)
                     if "exp" in jsObj:
                         if jsObj["exp"]-int(time.time())>0:
                             return jwtToken
                         else:
-                            xbmc.log("RTLMost: jwtToken expired, request a new one.", xbmc.LOGINFO)
+                            xbmc.log("RTL+: jwtToken expired, request a new one.", xbmc.LOGINFO)
                     else:
-                        xbmc.log("RTLMost: match group 2 does not contains exp key: %s" % m.group(2), xbmc.LOGERROR)
+                        xbmc.log("RTL+: match group 2 does not contains exp key: %s" % m.group(2), xbmc.LOGERROR)
                 except:
                     xbmc.log(errMsg, xbmc.LOGERROR)
             else:
-                xbmc.log("RTLMost: jwtToken not match to (.*)\.(.*)\.(.*). jwtToken: %s" % jwtToken, xbmc.LOGERROR)
+                xbmc.log("RTL+: jwtToken not match to (.*)\.(.*)\.(.*). jwtToken: %s" % jwtToken, xbmc.LOGERROR)
         headers = {
             'x-auth-gigya-uid': self.uid,
             'x-auth-gigya-signature': xbmcaddon.Addon().getSetting('signature'),
