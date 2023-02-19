@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 '''
-    RTL Most Add-on
-    Copyright (C) 2018
+    RTL+ Add-on
+    Copyright (C) 2023
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -117,7 +117,7 @@ class player:
             li = xbmcgui.ListItem(path=stream_url)
 
         if li is None:
-            xbmcgui.Dialog().notification(u'Lej\u00E1tsz\u00E1s sikertelen. DRM v\u00E9dett m\u0171sor.', 'RTL Most', time=8000)
+            xbmcgui.Dialog().notification(u'Lej\u00E1tsz\u00E1s sikertelen. DRM v\u00E9dett m\u0171sor.', 'RTL+', time=8000)
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), False, xbmcgui.ListItem())
             return
 
@@ -134,24 +134,24 @@ class player:
             if m:
                 errMsg = ""
                 try:
-                    errMsg = "RTLMost: cannot base64 decode the group 2: %s" % m.group(2)
+                    errMsg = "RTL+: cannot base64 decode the group 2: %s" % m.group(2)
                     decodedToken=base64.b64decode(m.group(2)+"===")
                     if sys.version_info[0] == 3:
-                        errMsg = "RTLMost: utf-8 decode error: %s" % decodedToken
+                        errMsg = "RTL+: utf-8 decode error: %s" % decodedToken
                         decodedToken = decodedToken.decode("utf-8", "ignore")
-                    errMsg = "RTLMost: decodedToken is not a json object: %s" % decodedToken
+                    errMsg = "RTL+: decodedToken is not a json object: %s" % decodedToken
                     jsObj = json.loads(decodedToken)
                     if "exp" in jsObj:
                         if jsObj["exp"]-int(time.time())>0:
                             return jwtToken
                         else:
-                            xbmc.log("RTLMost: jwtToken expired, request a new one.", xbmc.LOGINFO)
+                            xbmc.log("RTL+: jwtToken expired, request a new one.", xbmc.LOGINFO)
                     else:
-                        xbmc.log("RTLMost: match group 2 does not contains exp key: %s" % m.group(2), xbmc.LOGERROR)
+                        xbmc.log("RTL+: match group 2 does not contains exp key: %s" % m.group(2), xbmc.LOGERROR)
                 except:
                     xbmc.log(errMsg, xbmc.LOGERROR)
             else:
-                xbmc.log("RTLMost: jwtToken not match to (.*)\.(.*)\.(.*). jwtToken: %s" % jwtToken, xbmc.LOGERROR)
+                xbmc.log("RTL+: jwtToken not match to (.*)\.(.*)\.(.*). jwtToken: %s" % jwtToken, xbmc.LOGERROR)
         headers = {
             'x-auth-gigya-uid': self.uid,
             'x-auth-gigya-signature': xbmcaddon.Addon().getSetting('signature'),

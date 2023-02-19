@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 '''
-    RTL Most Add-on
-    Copyright (C) 2018
+    RTL+ Add-on
+    Copyright (C) 2023
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,10 +38,7 @@ sysaddon = sys.argv[0] ; syshandle = int(sys.argv[1])
 addon = xbmcaddon.Addon
 addonFanart = addon().getAddonInfo('fanart')
 
-base_url = 'https://pc.middleware.6play.fr/6play/v2/platforms/m6group_web/services/rtlhu_rtl_most'
 img_link = 'https://images.6play.fr/v2/images/%s/raw'
-cat_link = '/folders?limit=999&offset=0'
-prog_link = '/folders/%s/programs?limit=999&offset=0&csa=5&with=parentcontext'
 package_change_needed = 'A hozzáféréshez nagyobb csomagra váltás szükséges.\nRészletek: https://rtl.hu/rtlplusz/szolgaltatasok'
 deviceID_url = 'https://e.m6web.fr/info?customer=rtlhu'
 profile_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/%s/profiles'
@@ -60,7 +57,7 @@ class navigator:
         self.password = xbmcaddon.Addon().getSetting('password').strip()
 
         if not (self.username and self.password) != '':
-            if xbmcgui.Dialog().ok('RTL Most', u'A kieg\u00E9sz\u00EDt\u0151 haszn\u00E1lat\u00E1hoz add meg a bejelentkez\u00E9si adataidat.'):
+            if xbmcgui.Dialog().ok('RTL+', u'A kieg\u00E9sz\u00EDt\u0151 haszn\u00E1lat\u00E1hoz add meg a bejelentkez\u00E9si adataidat.'):
                 xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
                 addon(addon().getAddonInfo('id')).openSettings()                
             sys.exit(0)
@@ -79,7 +76,7 @@ class navigator:
                 allCategory = block['content']['items']
                 if block['content']['pagination']['nextPage']:
                     progressDialog = xbmcgui.DialogProgress()
-                    progressDialog.create("RTL Most", "Kategóriák letöltése folyamatban")
+                    progressDialog.create("RTL+", "Kategóriák letöltése folyamatban")
                     nbPages = (block['content']['pagination']['totalItems'] + block['content']['pagination']['itemsPerPage'] -1) // block['content']['pagination']['itemsPerPage']
                     for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
                         currItems = min((page + defaultNumberOfPages + 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
@@ -107,7 +104,7 @@ class navigator:
                     progressDialog = None
                     nbPages = (block['content']['pagination']['totalItems'] + block['content']['pagination']['itemsPerPage'] - 1) // block['content']['pagination']['itemsPerPage']
                     progressDialog = xbmcgui.DialogProgress()
-                    progressDialog.create("RTL Most", "Programok letöltése folyamatban")
+                    progressDialog.create("RTL+", "Programok letöltése folyamatban")
                     for page in range(defaultNumberOfPages+1, nbPages + 1, defaultNumberOfPages):
                         currItems = min((page + defaultNumberOfPages - 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
                         progressDialog.update(round(page/nbPages*100), 'Programok letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
@@ -213,7 +210,7 @@ class navigator:
         if currentBlock['content']['pagination']['nextPage']:
             nbPages = (currentBlock['content']['pagination']['totalItems'] + currentBlock['content']['pagination']['itemsPerPage'] - 1) // currentBlock['content']['pagination']['itemsPerPage']
             progressDialog = xbmcgui.DialogProgress()
-            progressDialog.create("RTL Most", "Epizódlista letöltése folyamatban")
+            progressDialog.create("RTL+", "Epizódlista letöltése folyamatban")
             for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
                 currItems = min((page + defaultNumberOfPages - 1) * currentBlock['content']['pagination']['itemsPerPage'], currentBlock['content']['pagination']['totalItems'])
                 progressDialog.update(round(page/nbPages*100), 'Epizódlista letöltése folyamatban (' + str(currItems) + '/' + str(currentBlock['content']['pagination']['totalItems']) + ')')
@@ -331,7 +328,7 @@ class navigator:
 
     def Logout(self):
         dialog = xbmcgui.Dialog()
-        if 1 == dialog.yesno(u'RTL Most kijelentkez\u00E9s', u'Val\u00F3ban ki szeretn\u00E9l jelentkezni?', '', ''):
+        if 1 == dialog.yesno(u'RTL+ kijelentkez\u00E9s', u'Val\u00F3ban ki szeretn\u00E9l jelentkezni?', '', ''):
             xbmcaddon.Addon().setSetting('userid', '')
             xbmcaddon.Addon().setSetting('signature', '')
             xbmcaddon.Addon().setSetting('s.timestamp', '0')
@@ -343,7 +340,7 @@ class navigator:
             xbmcaddon.Addon().setSetting('deviceid', '')
             xbmc.executebuiltin("XBMC.Container.Update(path,replace)")
             xbmc.executebuiltin("XBMC.ActivateWindow(Home)")
-            dialog.ok('RTL Most', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
+            dialog.ok('RTL+', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
         
         return
 
