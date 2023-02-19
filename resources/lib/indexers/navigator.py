@@ -38,7 +38,7 @@ sysaddon = sys.argv[0] ; syshandle = int(sys.argv[1])
 addon = xbmcaddon.Addon
 addonFanart = addon().getAddonInfo('fanart')
 
-img_link = 'https://images.6play.fr/v2/images/%s/raw'
+img_link = 'https://images-fio.6play.fr/v2/images/%s/raw'
 package_change_needed = 'A hozzáféréshez nagyobb csomagra váltás szükséges.\nRészletek: https://rtl.hu/rtlplusz/szolgaltatasok'
 deviceID_url = 'https://e.m6web.fr/info?customer=rtlhu'
 profile_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/%s/profiles'
