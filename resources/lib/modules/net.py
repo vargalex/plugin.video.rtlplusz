@@ -51,7 +51,7 @@ def request(url, post=None, headers={}, redirect=True, timeout=30):
         'Accept-Language': 'hu-HU,hu;q=0.8,en-US;q=0.5,en;q=0.3'})
 
     if isinstance(post, dict):
-        post = urlencode(post)
+        post = urlencode(post).encode('utf-8')
     
     if redirect == False:
 

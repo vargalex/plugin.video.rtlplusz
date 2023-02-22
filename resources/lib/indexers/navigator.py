@@ -291,7 +291,7 @@ class navigator:
         if update == False:
             return
 
-        login_url = 'https://accounts.%s/accounts.login?loginID=%s&password=%s&targetEnv=mobile&format=jsonp&apiKey=%s&callback=jsonp&include=data'
+        login_url = 'https://accounts.%s/accounts.login'
         most_baseUrl = 'https://www.rtlmost.hu'
 
         most_source = net.request(most_baseUrl)
@@ -301,8 +301,7 @@ class navigator:
         api_src = [i for i in api_src if 'login.rtlmost.hu' in i][0]
         api_src = json.loads(re.sub('([{,:])(\w+)([},:])','\\1\"\\2\"\\3', api_src))
 
-        r = net.request(login_url % (api_src['cdn'], self.username, quote_plus(self.password), api_src['key']))
-        r = re.search('\(([^\)]+)', r).group(1)
+        r = net.request(login_url % api_src['cdn'], post={'loginID': self.username, 'password': self.password, 'APIKey': api_src['key']})
         jsonparse = json.loads(r)
 
         if 'errorMessage' in jsonparse:
