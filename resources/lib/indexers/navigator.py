@@ -62,12 +62,8 @@ class navigator:
                 addon(addon().getAddonInfo('id')).openSettings()
             self.username = xbmcaddon.Addon().getSetting('email').strip()
             self.password = xbmcaddon.Addon().getSetting('password').strip()
-        if xbmcaddon.Addon().getSetting('deviceid') == "":
-            r = net.request(deviceID_url)
-            jsonparse = json.loads(r)
-            xbmcaddon.Addon().setSetting('deviceid', jsonparse['device_id'])
+        self.setDeviceID()
         self.Login()
-
 
     def root(self):
         data = json.loads(net.request(api_url % ('alias', 'home'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
@@ -91,8 +87,8 @@ class navigator:
                             break
                     progressDialog.close()
                 for category in allCategory:
-                    if category['itemContent']['id'] != 'ec439707a9ef0bfc8f74a020859513ab1c022b91':
-                        self.addDirectoryItem(py2_encode(category['itemContent']['image']['caption']), 'programs&type=%s&id=%s' % (category['itemContent']['action']['target']['value_layout']['type'], category['itemContent']['action']['target']['value_layout']['id']), '', 'DefaultTVShows.png')
+                    #if category['itemContent']['id'] != 'ec439707a9ef0bfc8f74a020859513ab1c022b91':
+                    self.addDirectoryItem(py2_encode(category['itemContent']['image']['caption']), 'programs&type=%s&id=%s' % (category['itemContent']['action']['target']['value_layout']['type'], category['itemContent']['action']['target']['value_layout']['id']), '', 'DefaultTVShows.png')
                 break
         self.endDirectory()
 
@@ -284,6 +280,16 @@ class navigator:
             xbmcgui.Dialog().ok(u'Lej\u00E1tsz\u00E1s sikertelen.', package_change_needed)
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), False, xbmcgui.ListItem())
 
+    def setDeviceID(self):
+        if xbmcaddon.Addon().getSetting('deviceid') == "":
+            r = net.request(deviceID_url)
+            jsonparse = json.loads(r)
+            xbmcaddon.Addon().setSetting('deviceid', jsonparse['device_id'])
+
+    def consentOnDevice(self, jwtToken):
+        device_consents_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/deviceid-%s/consents'
+        net.request(device_consents_url % xbmcaddon.Addon().getSetting('deviceid'), post='{"analytics":{"consent":true,"form":"explicit"},"adtargeting":{"consent":true,"form":"explicit"},"personalization":{"consent":true,"form":"explicit"},"multidevicematching":{"consent":true,"form":"explicit"}}'.encode('utf-8'), headers={'authorization': 'Bearer %s' % jwtToken, 'content-type': 'application/json'})
+
     def Login(self):
         t1 = int(xbmcaddon.Addon().getSetting('s.timestamp'))
         t2 = int(time.time())
@@ -315,17 +321,13 @@ class navigator:
         xbmcaddon.Addon().setSetting('s.timestamp', jsonparse['signatureTimestamp'])
         xbmcaddon.Addon().setSetting('loggedin', 'true')
 
-        r = net.request(deviceID_url)
-        jsonparse = json.loads(r)
-        xbmcaddon.Addon().setSetting('deviceid', jsonparse['device_id'])
         jwtToken = player.player().getJwtToken()
+        self.consentOnDevice(jwtToken)
         r = net.request(profile_url % xbmcaddon.Addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % jwtToken})
         js = json.loads(r)
         xbmcaddon.Addon().setSetting('profileid', js[0]['uid'])
         xbmcaddon.Addon().setSetting('jwttoken', '')
         player.player().getJwtToken()
-
-
 
     def Logout(self):
         dialog = xbmcgui.Dialog()
@@ -338,13 +340,12 @@ class navigator:
             xbmcaddon.Addon().setSetting('password', '')
             xbmcaddon.Addon().setSetting('deviceid', '')
             xbmcaddon.Addon().setSetting('jwttoken', '')
-            xbmcaddon.Addon().setSetting('deviceid', '')
+            xbmcaddon.Addon().setSetting('profileid', '')
             xbmc.executebuiltin("XBMC.Container.Update(path,replace)")
             xbmc.executebuiltin("XBMC.ActivateWindow(Home)")
             dialog.ok('RTL+', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
         
         return
-
 
     def addDirectoryItem(self, name, query, thumb, icon, context=None, queue=False, isAction=True, isFolder=True, Fanart=None, meta=None):
         url = '%s?action=%s' % (sysaddon, query) if isAction == True else query
@@ -360,7 +361,6 @@ class navigator:
         if isFolder == False: item.setProperty('IsPlayable', 'true')
         if not meta == None: item.setInfo(type='Video', infoLabels = meta)
         xbmcplugin.addDirectoryItem(handle=syshandle, url=url, listitem=item, isFolder=isFolder)
-
 
     def endDirectory(self, type='addons'):
         xbmcplugin.setContent(syshandle, type)
