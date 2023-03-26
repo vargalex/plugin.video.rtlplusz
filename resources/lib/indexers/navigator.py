@@ -182,12 +182,16 @@ class navigator:
         subcats = []
         if subcat == None:
             for block in content['blocks']:
-                if block['featureId'] in ['videos_by_subcat_by_program', 'videos_by_season_by_program']:
+                if block['featureId'] == 'videos_by_tags':
+                    subcats.clear()
+                    subcat = block['id'].split('--')[1]
+                    break
+                if block['featureId'] in ['videos_by_program', 'videos_by_subcat_by_program', 'videos_by_season_by_program', 'folders_by_service']:
                     subcats.append({'title': block['title']['long'], 'subcat': block['id'].split('--')[1]})
 
         if len(subcats) == 0:
             for block in content['blocks']:
-                if block['featureId'] == 'info_by_program':
+                if block['featureId'] in ['info_by_program']:
                     subcats.append({'title': '', 'subcat': block['id'].split('--')[1]})
 
         if len(subcats) > 1:
@@ -238,7 +242,7 @@ class navigator:
             try:
                 eligible = item['itemContent']['action']['target']['value_layout']['id'] != 'offers'
                 if (not hidePlus) or eligible:
-                    title = py2_encode(item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else content['entity']['metadata']['title'])
+                    title = py2_encode(item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else item['itemContent']['image']['caption'] if item['itemContent']['image'] != None and item['itemContent']['image']['caption'] != None else content['entity']['metadata']['title'])
                     if not eligible:
                         title = '[COLOR red]' + title + '[/COLOR]'
                     plot = py2_encode(item['itemContent']['description'])
@@ -255,7 +259,10 @@ class navigator:
                     clip_id = py2_encode(item['itemContent']['action']['target']['value_layout']['id'])
                     clip_type = py2_encode(item['itemContent']['action']['target']['value_layout']['type'])
                     meta = {'title': title, 'plot': plot, 'duration': duration}
-                    self.addDirectoryItem(title, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(clip_type), quote_plus(clip_id), quote_plus(json.dumps(meta)), thumb), thumb, 'DefaultTVShows.png', meta=meta, isFolder=False, Fanart=fanart)
+                    if clip_type == 'folder':
+                        self.addDirectoryItem(title, 'episodes&type=%s&id=%s&fanart=%s' % (quote_plus(clip_type), quote_plus(clip_id), fanart), thumb, 'DefaultFolder.png', Fanart=fanart)
+                    else:
+                        self.addDirectoryItem(title, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(clip_type), quote_plus(clip_id), quote_plus(json.dumps(meta)), thumb), thumb, 'DefaultTVShows.png', meta=meta, isFolder=False, Fanart=fanart)
                     hasItemsListed = True
             except:
                 pass
