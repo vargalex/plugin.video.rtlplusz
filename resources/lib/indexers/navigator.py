@@ -77,7 +77,7 @@ class navigator:
                     nbPages = (block['content']['pagination']['totalItems'] + block['content']['pagination']['itemsPerPage'] -1) // block['content']['pagination']['itemsPerPage']
                     for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
                         currItems = min((page + defaultNumberOfPages + 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
-                        progressDialog.update(round(page/nbPages*100), 'Kategóriák letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
+                        progressDialog.update(int(round(float(page)/nbPages*100)), 'Kategóriák letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
                         pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
                         try:
                             allCategory += pageData['content']['items']
@@ -105,7 +105,7 @@ class navigator:
                     progressDialog.create("RTL+", "Programok letöltése folyamatban")
                     for page in range(defaultNumberOfPages+1, nbPages + 1, defaultNumberOfPages):
                         currItems = min((page + defaultNumberOfPages - 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
-                        progressDialog.update(round(page/nbPages*100), 'Programok letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
+                        progressDialog.update(int(round(float(page)/nbPages*100)), 'Programok letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
                         pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
                         try:
                             allItems += pageData['content']['items']
@@ -211,7 +211,7 @@ class navigator:
             progressDialog.create("RTL+", "Epizódlista letöltése folyamatban")
             for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
                 currItems = min((page + defaultNumberOfPages - 1) * currentBlock['content']['pagination']['itemsPerPage'], currentBlock['content']['pagination']['totalItems'])
-                progressDialog.update(round(page/nbPages*100), 'Epizódlista letöltése folyamatban (' + str(currItems) + '/' + str(currentBlock['content']['pagination']['totalItems']) + ')')
+                progressDialog.update(int(round(float(page)/nbPages*100)), 'Epizódlista letöltése folyamatban (' + str(currItems) + '/' + str(currentBlock['content']['pagination']['totalItems']) + ')')
                 subcontent = json.loads(net.request(api_block_url % (content['entity']['type'], content['entity']['id'], currentBlock['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
                 try:
                     episodes += subcontent['content']['items']
