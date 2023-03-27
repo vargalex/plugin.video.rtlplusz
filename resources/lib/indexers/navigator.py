@@ -183,7 +183,7 @@ class navigator:
         if subcat == None:
             for block in content['blocks']:
                 if block['featureId'] == 'videos_by_tags':
-                    subcats.clear()
+                    subcats = []
                     subcat = block['id'].split('--')[1]
                     break
                 if block['featureId'] in ['videos_by_program', 'videos_by_subcat_by_program', 'videos_by_season_by_program', 'folders_by_service']:

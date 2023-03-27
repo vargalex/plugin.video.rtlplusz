@@ -1,4 +1,6 @@
-﻿[B]1.0.1[/B]
+﻿[B]1.0.2[/B]
+- Leia BugFix
+[B]1.0.1[/B]
 - BugFix
 [B]1.0.0[/B]
 - RTL Most átnevezve RTL+-ra
