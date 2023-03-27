@@ -242,7 +242,7 @@ class navigator:
             try:
                 eligible = item['itemContent']['action']['target']['value_layout']['id'] != 'offers'
                 if (not hidePlus) or eligible:
-                    title = py2_encode(item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else item['itemContent']['image']['caption'] if item['itemContent']['image'] != None and item['itemContent']['image']['caption'] != None else content['entity']['metadata']['title'])
+                    title = py2_encode(item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else item['itemContent']['analytics']['googleAnalytics']['eventLabel'] if item['itemContent']['analytics'] != None and item['itemContent']['analytics']['googleAnalytics'] != None and item['itemContent']['analytics']['googleAnalytics']['eventLabel'] != None else item['itemContent']['image']['caption'] if item['itemContent']['image'] != None and item['itemContent']['image']['caption'] != None else content['entity']['metadata']['title'])
                     if not eligible:
                         title = '[COLOR red]' + title + '[/COLOR]'
                     plot = py2_encode(item['itemContent']['description'])

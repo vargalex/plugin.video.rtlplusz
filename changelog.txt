@@ -1,4 +1,6 @@
-﻿[B]1.0.2[/B]
+﻿[B]1.0.3[/B]
+- Cím kinyerésének módosítása
+[B]1.0.2[/B]
 - Leia BugFix
 [B]1.0.1[/B]
 - BugFix
