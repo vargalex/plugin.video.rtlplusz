@@ -1,4 +1,7 @@
-﻿[B]1.0.4[/B]
+﻿[B]1.0.5[/B]
+- Keresés megvalósítása
+- Leia BugFix
+[B]1.0.4[/B]
 - Forrás változás követése (bejelentkezés)
 [B]1.0.3[/B]
 - Cím kinyerésének módosítása

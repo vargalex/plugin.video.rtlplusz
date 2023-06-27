@@ -43,6 +43,8 @@ meta = params.get('meta')
 
 pid = params.get('id')
 
+search = params.get('search')
+
 if action == None:
     navigator().root()
 
@@ -61,3 +63,15 @@ elif action == 'drmSettings':
     
 elif action == 'logout':
     navigator().Logout()
+
+elif action == 'search':
+    navigator().doSearch(search)
+
+elif action == 'getsearches':
+    navigator().getSearches()
+
+elif action == 'newsearch':
+    navigator().newSearch()
+
+elif action == 'deletesearchhistory':
+    navigator().deleteSearchHistory()

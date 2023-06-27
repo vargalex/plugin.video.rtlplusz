@@ -27,11 +27,13 @@ from resources.lib.modules import player
 if sys.version_info[0] == 3:
     import urllib.parse as urlparse
     from urllib.parse import quote_plus
+    from xbmcvfs import translatePath
 else:
     import urlparse
     from urllib import quote_plus
+    from xbmc import translatePath
 
-from resources.lib.modules.utils import py2_encode
+from resources.lib.modules.utils import py2_encode, py2_decode
 
 
 sysaddon = sys.argv[0] ; syshandle = int(sys.argv[1])
@@ -46,6 +48,9 @@ api_base = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-3
 defaultNumberOfPages = 2
 api_url = api_base + 'layout?nbPages=%d' % defaultNumberOfPages
 api_block_url = api_base + 'block/%s?nbPages=%d&page=%d'
+search_url = 'https://nhacvivxxk-dsn.algolia.net/1/indexes/*/queries'
+search_api_key = '5fce02cb376fb2cda773be8a8404598a'
+search_application_id = 'NHACVIVXXK'
 
 class navigator:
     def __init__(self):
@@ -53,20 +58,23 @@ class navigator:
             locale.setlocale(locale.LC_ALL, "")
         except:
             pass
-        self.username = xbmcaddon.Addon().getSetting('email').strip()
-        self.password = xbmcaddon.Addon().getSetting('password').strip()
+        self.username = addon().getSetting('email').strip()
+        self.password = addon().getSetting('password').strip()
 
         if not (self.username and self.password) != '':
             if xbmcgui.Dialog().ok('RTL+', u'A kieg\u00E9sz\u00EDt\u0151 haszn\u00E1lat\u00E1hoz add meg a bejelentkez\u00E9si adataidat.'):
                 xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
                 addon(addon().getAddonInfo('id')).openSettings()
-            self.username = xbmcaddon.Addon().getSetting('email').strip()
-            self.password = xbmcaddon.Addon().getSetting('password').strip()
+            self.username = addon().getSetting('email').strip()
+            self.password = addon().getSetting('password').strip()
         self.setDeviceID()
         self.Login()
+        self.base_path = py2_decode(translatePath(addon().getAddonInfo('profile')))
+        self.searchFileName = os.path.join(self.base_path, "search.history")
 
     def root(self):
         data = json.loads(net.request(api_url % ('alias', 'home'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        self.addDirectoryItem(py2_encode('Keresés'), 'getsearches' , '', 'DefaultTVShows.png')
         for block in data['blocks']:
             if block['featureId'] == 'folders_by_service' and block['title']:
                 xbmcgui.Dialog().notification("RTL+", block['title']['long'])
@@ -92,11 +100,35 @@ class navigator:
                 break
         self.endDirectory()
 
+    def showPrograms(self, allItems):
+        prgs={}
+        for program in allItems:
+            prg = {}
+            title = py2_encode(program['itemContent']['title'])
+            try: thumb = img_link % program['itemContent']['image']['id']
+            except: thumb = ''
+            try: fanart = img_link % program['itemContent']['secondaryImage']['id']
+            except: fanart = None
+            prgType = program['itemContent']['action']['target']['value_layout']['type']
+            prgId = program['itemContent']['action']['target']['value_layout']['id']
+            plot = py2_encode(program['itemContent']['description'])
+            extraInfo = ""
+            if program['itemContent']['highlight']:
+                extraInfo = ' [I][COLOR silver](%s)[/COLOR][/I]' % py2_encode(program['itemContent']['highlight'])
+            prg = {'type': prgType, 'id': prgId, 'extrainfo': extraInfo, 'fanart': fanart, 'thumb': thumb, 'plot': plot}
+            prgs[title] = prg
+        prgTitles = list(prgs.keys())
+        if (xbmcaddon.Addon().getSetting('sort_programs') == 'true'):
+            prgTitles.sort(key=locale.strxfrm)
+        for prg in prgTitles:
+            self.addDirectoryItem("%s%s" % (prg, prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
+        self.endDirectory(type='tvshows')
+
     def programs(self, ptype, pid):
         data = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-        prgs={}
+        allItems = []
         for block in data['blocks']:
-            if block['featureId'] == 'programs_by_folder_by_service' and (not block['title'] or (block['title'] and block['title']['long'] and 'TOP' not in block['title']['long'])):
+            if block['featureId'] == 'programs_by_folder_by_service' and (not block['title'] or (block['title'] and block['title']['long'] and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long'])):
                 allItems = block['content']['items']
                 if block['content']['pagination']['nextPage']:
                     progressDialog = None
@@ -114,28 +146,8 @@ class navigator:
                         if progressDialog.iscanceled():
                             break
                     progressDialog.close()
-                for program in allItems:
-                    prg = {}
-                    title = py2_encode(program['itemContent']['title'])
-                    try: thumb = img_link % program['itemContent']['image']['id']
-                    except: thumb = ''
-                    try: fanart = img_link % program['itemContent']['secondaryImage']['id']
-                    except: fanart = None
-                    prgType = program['itemContent']['action']['target']['value_layout']['type']
-                    prgId = program['itemContent']['action']['target']['value_layout']['id']
-                    plot = py2_encode(program['itemContent']['description'])
-                    extraInfo = ""
-                    if program['itemContent']['highlight']:
-                        extraInfo = ' [I][COLOR silver](%s)[/COLOR][/I]' % program['itemContent']['highlight']
-                    prg = {'type': prgType, 'id': prgId, 'extrainfo': extraInfo, 'fanart': fanart, 'thumb': thumb, 'plot': plot}
-                    prgs[title] = prg
                 break
-        prgTitles = list(prgs.keys())
-        if (xbmcaddon.Addon().getSetting('sort_programs') == 'true'):
-            prgTitles.sort(key=locale.strxfrm)
-        for prg in prgTitles:
-            self.addDirectoryItem("%s%s" % (prg, prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
-        self.endDirectory(type='tvshows')
+        self.showPrograms(allItems)
 
     def episodes(self, ptype, pid, fanart, subcat=None):
         class title_sorter:
@@ -352,6 +364,62 @@ class navigator:
             dialog.ok('RTL+', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
         
         return
+
+    def doSearch(self, search):
+        postStr = '{"requests":[{"indexName":"rtlmutu_prod_bedrock_layout_items_v2_rtlhu_main","query":"' + search + '","params":"hitsPerPage=100&clickAnalytics=false&facetFilters=%5B%5B%22metadata.item_type%3Aprogram%22%5D%2C%5B%22metadata.platforms_assets%3Am6group_web%22%5D%5D"}]}'
+        data = json.loads(net.request(search_url, headers={'x-algolia-api-key': search_api_key, 'x-algolia-application-id': search_application_id},post=postStr.encode('utf-8')))
+        allItems = []
+        for result in data['results']:
+            if result['hits']:
+                for item in result['hits']:
+                    allItems.append(item['item'])
+                break
+        self.showPrograms(allItems)
+
+    def getSearches(self):
+        self.addDirectoryItem('[COLOR lightgreen]Új keresés[/COLOR]', 'newsearch', '', 'DefaultFolder.png')
+        try:
+            file = open(self.searchFileName, "r")
+            olditems = file.read().splitlines()
+            file.close()
+            items = list(set(olditems))
+            items.sort(key=locale.strxfrm)
+            if len(items) != len(olditems):
+                file = open(self.searchFileName, "w")
+                file.write("\n".join(items))
+                file.close()
+            for item in items:
+                self.addDirectoryItem(item, 'search&search=%s' % quote_plus(item), '', 'DefaultFolder.png')
+            if len(items) > 0:
+                self.addDirectoryItem('[COLOR red]Keresési előzmények törlése[/COLOR]', 'deletesearchhistory', '', 'DefaultFolder.png')
+        except:
+            pass
+        self.endDirectory()
+
+    def newSearch(self):
+        search_text = self.getSearchText()
+        if search_text != '':
+            if not os.path.exists(self.base_path):
+                os.mkdir(self.base_path)
+            file = open(self.searchFileName, "a")
+            file.write("%s\n" % search_text)
+            file.close()
+            self.doSearch(search_text)
+
+    def deleteSearchHistory(self):
+        if xbmcgui.Dialog().yesno("RTL+", "Biztosan törli a keresési előzményeket?"):
+            if os.path.exists(self.searchFileName):
+                os.remove(self.searchFileName)
+
+    def getSearchText(self):
+        search_text = ''
+        keyb = xbmc.Keyboard('',u'Add meg a keresend\xF5 film c\xEDm\xE9t')
+        keyb.doModal()
+
+        if (keyb.isConfirmed()):
+            search_text = keyb.getText()
+
+        return search_text
 
     def addDirectoryItem(self, name, query, thumb, icon, context=None, queue=False, isAction=True, isFolder=True, Fanart=None, meta=None):
         url = '%s?action=%s' % (sysaddon, query) if isAction == True else query
