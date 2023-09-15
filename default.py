@@ -45,11 +45,13 @@ pid = params.get('id')
 
 search = params.get('search')
 
+blockid = params.get('blockid')
+
 if action == None:
     navigator().root()
 
 elif action == 'programs':
-    navigator().programs(ptype, pid)
+    navigator().programs(ptype, pid, blockid)
 
 elif action == 'episodes':
     navigator().episodes(ptype, pid, fanart, subcat)
