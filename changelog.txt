@@ -1,4 +1,6 @@
-﻿[B]1.0.6[/B]
+﻿[B]1.0.7[/B]
+- Login változás követése
+[B]1.0.6[/B]
 - Kategórián belüli csoportosítás
 [B]1.0.5[/B]
 - Keresés megvalósítása

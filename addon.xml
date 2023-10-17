@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.rtlplusz" name="RTL+" version="1.0.6" provider-name="vargalex">
+<addon id="plugin.video.rtlplusz" name="RTL+" version="1.0.7" provider-name="vargalex">
 	<requires>
 		<import addon="script.module.inputstreamhelper" version="0.4.3"/>
 	</requires>
@@ -12,7 +12,7 @@
 		<language>hu</language>
 		<platform>all</platform>
 		<news>
-		- Kategórián belüli csoportosítás
+		- Login változás követése
 		</news>
 		<assets>
 		  <icon>icon.png</icon>

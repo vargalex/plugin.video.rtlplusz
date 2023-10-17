@@ -331,35 +331,71 @@ class navigator:
             return
 
         login_url = 'https://accounts.%s/accounts.login'
-        most_baseUrl = 'https://www.rtlmost.hu'
+        plusz_baseUrl = 'https://www.rtlplusz.hu'
 
-        most_source = net.request(most_baseUrl)
-        main_js = re.search('''<script async data-chunk="main" src=['"](\/main-.+?)['"]''', most_source).group(1)
-        api_src = net.request(urlparse.urljoin(most_baseUrl, main_js))
-        api_src = re.findall(r'(?:=)([^}]+login.rtlmost.hu[^}]+})', api_src)[0]
-        api_src = json.loads(re.sub('([{,:])(\w+)([},:])','\\1\"\\2\"\\3', api_src))
+        plusz_source = net.request(plusz_baseUrl)
+        main_js = re.search('''<script async data-chunk="main" src=['"](\/main-.+?)['"]''', plusz_source).group(1)
+        api_src = net.request(urlparse.urljoin(plusz_baseUrl, main_js))
+        api_src = re.findall(r'(?:=)([^}]+login.rtlmost.hu[^}]+})', api_src)
+        api_cdn = None
+        api_key = None
+        if api_src:
+            api_src = json.loads(re.sub('([{,:])(\w+)([},:])','\\1\"\\2\"\\3', api_src[0]))
+            api_cdn = api_src['cdn']
+            api_key = api_src['key']
+            xbmc.log('RTL+: API data found in main javascript', xbmc.LOGINFO)
+        else:
+            xbmc.log('RTL+: API data not found in main javascript trying in client javascript', xbmc.LOGINFO)
+            client_js = re.search('''<script type="module" src=['"](\/client-.+?)['"]''', plusz_source).group(1)
+            client_js_source = net.request(urlparse.urljoin(plusz_baseUrl, client_js))
+            gigya_start = client_js_source.find('"gigya":{')
+            if gigya_start > 0:
+                bracketCnt = 1
+                max_possible_length = 5000
+                pos = gigya_start + len('"gigya":{')
+                while bracketCnt > 0 and pos < len(client_js_source) and pos < gigya_start + max_possible_length:
+                    if client_js_source[pos] == '{':
+                        bracketCnt += 1
+                    if client_js_source[pos] == '}':
+                        bracketCnt -= 1
+                    pos += 1
+                if bracketCnt == 0:
+                    data = json.loads("{%s}" % client_js_source[gigya_start:pos])
+                    xbmc.log('RTL+: API data found in client js', xbmc.LOGINFO)
+                    api_cdn = data['gigya']['cdn']
+                    api_key = data['gigya']['key']
+                else:
+                    xbmc.log('RTL+: Error on finding gigya JSON end in client javascript!')
+            else:
+                xbmc.log('RTL+: gigya JSON data not found in client javascript!', xbmc.LOGERROR)
+        if api_cdn and api_key:
+            r = net.request(login_url % api_cdn, post={'loginID': self.username, 'password': self.password, 'APIKey': api_key})
+            jsonparse = json.loads(r)
 
-        r = net.request(login_url % api_src['cdn'], post={'loginID': self.username, 'password': self.password, 'APIKey': api_src['key']})
-        jsonparse = json.loads(r)
+            if 'errorMessage' in jsonparse:
+                xbmcgui.Dialog().ok(u'Bejelentkez\u00E9si hiba', jsonparse['errorMessage'])
+                xbmcaddon.Addon().setSetting('loggedin', 'false')
+                xbmcaddon.Addon().setSetting('s.timestamp', '0')
+                sys.exit(0)
 
-        if 'errorMessage' in jsonparse:
-            xbmcgui.Dialog().ok(u'Bejelentkez\u00E9si hiba', jsonparse['errorMessage'])
-            xbmcaddon.Addon().setSetting('loggedin', 'false')
-            xbmcaddon.Addon().setSetting('s.timestamp', '0')
-            sys.exit(0)
+            xbmcaddon.Addon().setSetting('userid', jsonparse['UID'])
+            xbmcaddon.Addon().setSetting('signature', jsonparse['UIDSignature'])
+            xbmcaddon.Addon().setSetting('s.timestamp', jsonparse['signatureTimestamp'])
+            xbmcaddon.Addon().setSetting('loggedin', 'true')
 
-        xbmcaddon.Addon().setSetting('userid', jsonparse['UID'])
-        xbmcaddon.Addon().setSetting('signature', jsonparse['UIDSignature'])
-        xbmcaddon.Addon().setSetting('s.timestamp', jsonparse['signatureTimestamp'])
-        xbmcaddon.Addon().setSetting('loggedin', 'true')
-
-        jwtToken = player.player().getJwtToken()
-        self.consentOnDevice(jwtToken)
-        r = net.request(profile_url % xbmcaddon.Addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % jwtToken})
-        js = json.loads(r)
-        xbmcaddon.Addon().setSetting('profileid', js[0]['uid'])
-        xbmcaddon.Addon().setSetting('jwttoken', '')
-        player.player().getJwtToken()
+            jwtToken = player.player().getJwtToken()
+            self.consentOnDevice(jwtToken)
+            r = net.request(profile_url % xbmcaddon.Addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % jwtToken})
+            js = json.loads(r)
+            xbmcaddon.Addon().setSetting('profileid', js[0]['uid'])
+            xbmcaddon.Addon().setSetting('jwttoken', '')
+            player.player().getJwtToken()
+            return
+        else:
+            xbmcgui.Dialog().ok(u'Bejelentkez\u00E9si hiba', 'Hiba a bejelentkezéshez szükséges adatok kinyerésekor!')
+        xbmcaddon.Addon().setSetting('loggedin', 'false')
+        xbmcaddon.Addon().setSetting('s.timestamp', '0')
+        sys.exit(0)
 
     def Logout(self):
         dialog = xbmcgui.Dialog()
