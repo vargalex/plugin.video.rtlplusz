@@ -104,7 +104,7 @@ class navigator:
         prgs={}
         for program in allItems:
             prg = {}
-            title = py2_encode(program['itemContent']['title'])
+            title = py2_encode(program['itemContent']['title'] if program['itemContent']['title'] else program['itemContent']['extraTitle'])
             try: thumb = img_link % program['itemContent']['image']['id']
             except: thumb = ''
             try: fanart = img_link % program['itemContent']['secondaryImage']['id']
@@ -121,7 +121,10 @@ class navigator:
         if (xbmcaddon.Addon().getSetting('sort_programs') == 'true'):
             prgTitles.sort(key=locale.strxfrm)
         for prg in prgTitles:
-            self.addDirectoryItem("%s%s" % (prg, prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
+            if prgs[prg]['type'] == 'program':
+                self.addDirectoryItem("%s%s" % (prg, prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
+            else:
+                self.addDirectoryItem(prg if prgs[prg]['id'] != 'offers' else '[COLOR red]%s[/COLOR]' % prg, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(prgs[prg]['type']), quote_plus(prgs[prg]['id']), quote_plus(json.dumps({'title': prg, 'plot': plot, 'duration': 0})), thumb), prgs[prg]['thumb'], 'DefaultTVShows.png', meta={'plot': prgs[prg]['plot']}, isFolder=False, Fanart=prgs[prg]['fanart'])
         self.endDirectory(type='tvshows')
 
     def programs(self, ptype, pid, blockid=None):
@@ -131,10 +134,12 @@ class navigator:
         if not blockid:
             data = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
             for block in data['blocks']:
-                if (block['featureId'] == 'programs_by_tags' and 'Legújabb részek' not in py2_encode(block['title']['long']) and 'Ismeretterjesztő' not in py2_encode(block['title']['long'])) or (block['featureId'] == 'programs_by_folder_by_service' and block['title'] and block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long']):
+                if (block['featureId'] == 'programs_by_tags' and 'Legújabb részek' not in py2_encode(block['title']['long']) and 'Ismeretterjesztő' not in py2_encode(block['title']['long'])) or (block['featureId'] == 'programs_by_folder_by_service' and block['title'] and block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long']) or (block['featureId'] == 'lives_by_services'):
                     allTags.append({'id': block['id'], 'title': block['title']['long']})
                 if (block['featureId'] == 'programs_by_folder_by_service') and (not block['title'] or (block['title'] and not block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long'])):
                     allTags.append({'id': block['id'], 'title': 'Összes'})
+                if (block['featureId'] == 'videos_by_program'):
+                    allTags.append({'id': block['id'], 'title': block['title']['long'] if block['title'] and block['title']['long'] and block['title']['long'].strip() != "" else 'Egyéb'})
                 if (processBlock == None) and (block['featureId'] == 'programs_by_folder_by_service') and (not block['title'] or (block['title'] and block['title']['long'] and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long'])):
                     processBlock = block
             if len(allTags) > 1:
