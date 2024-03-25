@@ -67,7 +67,7 @@ class navigator:
                 addon(addon().getAddonInfo('id')).openSettings()
             self.username = addon().getSetting('email').strip()
             self.password = addon().getSetting('password').strip()
-        self.setDeviceID()
+        #self.setDeviceID()
         self.Login()
         self.base_path = py2_decode(translatePath(addon().getAddonInfo('profile')))
         self.searchFileName = os.path.join(self.base_path, "search.history")
