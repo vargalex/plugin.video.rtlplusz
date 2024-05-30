@@ -43,8 +43,9 @@ class player:
             return match.lastindex if match != None else len(patterns)+1
 
         #dash_url = [i for i in streams if 'drmnp.ism/Manifest.mpd' in i]
-        dash_url = sorted([i for i in streams if 'mpd' in i], key=sort_by_resolution_pattern)
-        hls_url = sorted([i for i in streams if 'm3u8' in i])
+        dash_url = sorted([i for i in streams if 'mpd' in i and 'live' not in i], key=sort_by_resolution_pattern)
+        hls_url = sorted([i for i in streams if 'm3u8' in i and 'live' not in i])
+        live_url = sorted([i for i in streams if 'mpd' in i and 'live' in i])
         li = None
         if dash_url != []:
             # Inputstream and DRM
@@ -90,8 +91,10 @@ class player:
                 li.setContentLookup(False)
         elif hls_url != []:
             stream_url = hls_url[0]
-            manifest_url = net.request(stream_url, redirect=False)
-
+            if "live" not in stream_url:
+                manifest_url = net.request(stream_url, redirect=False)
+            else:
+                manifest_url = stream_url
             manifest = net.request(manifest_url)
             sources = m3u8_parser.parse(manifest)
             if len(sources) == 0:
@@ -116,6 +119,35 @@ class player:
             stream_url = root + '/' + source
             li = xbmcgui.ListItem(path=stream_url)
 
+        elif live_url != []:
+            headers = {
+                'x-customer-name': 'rtlhu',
+                'authorization': 'Bearer %s' % self.getJwtToken(),
+                'Origin': 'https://www.rtlplusz.hu'}
+
+            token_source = net.request(token_url % (self.uid, ptype, id), headers=headers)
+            token_source = json.loads(token_source)
+            x_dt_auth_token = py2_encode(token_source['token'])
+
+            license_headers = 'x-dt-auth-token=' + x_dt_auth_token + '&Origin=https://www.rtlplusz.hu&Referer=http.//www.rtlplusz.hu/'
+            license_key = 'https://lic.drmtoday.com/license-proxy-widevine/cenc/' + '|' + license_headers + '|R{SSM}|JBlicense'
+            DRM = 'com.widevine.alpha'
+            PROTOCOL = 'mpd'
+
+            from inputstreamhelper import Helper
+            is_helper = Helper(PROTOCOL, drm=DRM)
+            if is_helper.check_inputstream():
+                li = xbmcgui.ListItem(path=live_url[0])
+                if sys.version_info < (3, 0):  # if python version < 3 is safe to assume we are running on Kodi 18
+                    li.setProperty('inputstreamaddon', 'inputstream.adaptive')   # compatible with Kodi 18 API
+                else:
+                    li.setProperty('inputstream', 'inputstream.adaptive')  # compatible with recent builds Kodi 19 API
+                li.setProperty('inputstream.adaptive.manifest_type', PROTOCOL)
+                li.setProperty('inputstream.adaptive.license_type', DRM)
+                li.setProperty('inputstream.adaptive.license_key', license_key)
+                li.setMimeType('application/dash+xml')
+                li.setContentLookup(False)
+
         if li is None:
             xbmcgui.Dialog().notification(u'Lej\u00E1tsz\u00E1s sikertelen. DRM v\u00E9dett m\u0171sor.', 'RTL+', time=8000)
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), False, xbmcgui.ListItem())
@@ -130,7 +162,7 @@ class player:
         getJwt_url = 'https://front-auth.6cloud.fr/v2/platforms/m6group_web/getJwt'
         jwtToken = xbmcaddon.Addon().getSetting('jwttoken')
         if jwtToken != "":
-            m = re.search('(.*)\.(.*)\.(.*)', jwtToken)
+            m = re.search(r'(.*)\.(.*)\.(.*)', jwtToken)
             if m:
                 errMsg = ""
                 try:

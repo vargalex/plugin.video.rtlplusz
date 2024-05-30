@@ -213,7 +213,7 @@ class navigator:
         subcats = []
         if subcat == None:
             for block in content['blocks']:
-                if block['featureId'] == 'videos_by_tags':
+                if block['featureId'] in ['videos_by_tags', 'channels_by_platform']:
                     subcats = []
                     subcat = block['id'].split('--')[1]
                     break
