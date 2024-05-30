@@ -28,7 +28,7 @@ if sys.version_info[0] == 3:
 else:
     from urlparse import urlparse
 
-token_url = 'https://drm.6cloud.fr/v1/customers/rtlhu/platforms/m6group_web/services/rtlhu_rtl_ii_extended/users/%s/%s/%s/upfront-token'
+token_url = 'https://drm.6cloud.fr/v1/customers/rtlhu/platforms/m6group_web/services/rtlhu_rtl_klub/users/%s/%s/%s/upfront-token'
 
 class player:
     def __init__(self):
@@ -120,16 +120,17 @@ class player:
             li = xbmcgui.ListItem(path=stream_url)
 
         elif live_url != []:
+
             headers = {
                 'x-customer-name': 'rtlhu',
                 'authorization': 'Bearer %s' % self.getJwtToken(),
                 'Origin': 'https://www.rtlplusz.hu'}
 
-            token_source = net.request(token_url % (self.uid, ptype, id), headers=headers)
+            token_source = net.request(token_url % (self.uid, ptype, "dashcenc_%s" % id), headers=headers)
             token_source = json.loads(token_source)
             x_dt_auth_token = py2_encode(token_source['token'])
 
-            license_headers = 'x-dt-auth-token=' + x_dt_auth_token + '&Origin=https://www.rtlplusz.hu&Referer=http.//www.rtlplusz.hu/'
+            license_headers = 'x-dt-auth-token=' + x_dt_auth_token + '&Origin=https://www.rtlplusz.hu&Content-type='
             license_key = 'https://lic.drmtoday.com/license-proxy-widevine/cenc/' + '|' + license_headers + '|R{SSM}|JBlicense'
             DRM = 'com.widevine.alpha'
             PROTOCOL = 'mpd'

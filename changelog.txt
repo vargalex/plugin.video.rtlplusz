@@ -1,4 +1,6 @@
-﻿[B]1.0.8[/B]
+﻿[B]1.0.9[/B]
+- Live Stream lejátszása
+[B]1.0.8[/B]
 - DeviceID kivezetése
 [B]1.0.7[/B]
 - Login változás követése
