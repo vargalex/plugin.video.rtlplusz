@@ -1,4 +1,6 @@
-﻿[B]1.0.9[/B]
+﻿[B]1.0.10[/B]
+- Forrás változás követése
+[B]1.0.9[/B]
 - Live Stream lejátszása
 [B]1.0.8[/B]
 - DeviceID kivezetése
