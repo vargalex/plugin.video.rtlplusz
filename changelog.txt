@@ -1,4 +1,6 @@
-﻿[B]1.0.10[/B]
+﻿[B]1.0.11[/B]
+- Kategória csoportok kezelése
+[B]1.0.10[/B]
 - Forrás változás követése
 [B]1.0.9[/B]
 - Live Stream lejátszása

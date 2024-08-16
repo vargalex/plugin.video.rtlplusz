@@ -44,7 +44,7 @@ img_link = 'https://images-fio.6play.fr/v2/images/%s/raw'
 package_change_needed = 'A hozzáféréshez nagyobb csomagra váltás szükséges.\nRészletek: https://rtl.hu/rtlplusz/szolgaltatasok'
 deviceID_url = 'https://e.m6web.fr/info?customer=rtlhu'
 profile_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/%s/profiles'
-api_base = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-3/%s/%s/'
+api_base = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/%s/%s/'
 defaultNumberOfPages = 2
 api_url = api_base + 'layout?nbPages=%d' % defaultNumberOfPages
 api_block_url = api_base + 'block/%s?nbPages=%d&page=%d'
@@ -104,7 +104,7 @@ class navigator:
         prgs={}
         for program in allItems:
             prg = {}
-            title = py2_encode(program['itemContent']['title'] if program['itemContent']['title'] else program['itemContent']['extraTitle'])
+            title = py2_encode(program['itemContent']['title'] if program['itemContent']['title'] else program['itemContent']['extraTitle'] if program['itemContent']['extraTitle'] else program['itemContent']['image']['caption'])
             try: thumb = img_link % program['itemContent']['image']['id']
             except: thumb = ''
             try: fanart = img_link % program['itemContent']['secondaryImage']['id']
@@ -123,6 +123,8 @@ class navigator:
         for prg in prgTitles:
             if prgs[prg]['type'] == 'program':
                 self.addDirectoryItem("%s%s" % (prg, prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
+            elif prgs[prg]['type'] == 'folder':
+                self.addDirectoryItem(prg, 'programs&type=%s&id=%s' % (prgs[prg]['type'], prgs[prg]['id']), '', 'DefaultTVShows.png')
             else:
                 self.addDirectoryItem(prg if prgs[prg]['id'] != 'offers' else '[COLOR red]%s[/COLOR]' % prg, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(prgs[prg]['type']), quote_plus(prgs[prg]['id']), quote_plus(json.dumps({'title': prg, 'plot': plot, 'duration': 0})), thumb), prgs[prg]['thumb'], 'DefaultTVShows.png', meta={'plot': prgs[prg]['plot']}, isFolder=False, Fanart=prgs[prg]['fanart'])
         self.endDirectory(type='tvshows')
@@ -141,6 +143,8 @@ class navigator:
                     allTags.append({'id': block['id'], 'title': 'Összes'})
                 if (block['featureId'] == 'videos_by_program'):
                     allTags.append({'id': block['id'], 'title': block['title']['long'] if block['title'] and block['title']['long'] and block['title']['long'].strip() != "" else 'Egyéb'})
+                if block['featureId'] == 'folders_by_service' and block['templateId'] == 'FlatRectangleList' and block['id'] != data['blocks'][-1]['id']:
+                    allTags.append({'id': block['id'], 'title': 'Kategóriák'})
                 if (processBlock == None) and (block['featureId'] == 'programs_by_folder_by_service') and (not block['title'] or (block['title'] and block['title']['long'] and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long'])):
                     processBlock = block
             if len(allTags) > 1:
