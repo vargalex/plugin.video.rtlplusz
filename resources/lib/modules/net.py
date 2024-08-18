@@ -31,7 +31,7 @@ else:
     from urllib import urlencode
     from urllib import addinfourl
 
-def request(url, post=None, headers={}, redirect=True, timeout=30):
+def request(url, post=None, headers={}, redirect=True, timeout=30, isPatchRequest=False):
     handlers = []
     if (2, 7, 8) < sys.version_info < (2, 7, 12):
         try:
@@ -46,7 +46,7 @@ def request(url, post=None, headers={}, redirect=True, timeout=30):
 
     headers.update({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0',
-        'Referer': 'https://www.rtlplusz.hu/',
+        'Referer': 'https://www.rtlplusz.hu',
         'x-customer-name': 'rtlhu',
         'Accept-Language': 'hu-HU,hu;q=0.8,en-US;q=0.5,en;q=0.3'})
 
@@ -73,6 +73,8 @@ def request(url, post=None, headers={}, redirect=True, timeout=30):
         except: pass
 
     request = urllib2.Request(url, data=post, headers=headers)
+    if isPatchRequest:
+        request.get_method = lambda: "PATCH"
     response = urllib2.urlopen(request, timeout=timeout)
 
     if redirect == False:

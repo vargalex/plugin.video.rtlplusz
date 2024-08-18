@@ -19,7 +19,7 @@
 '''
 
 
-import os,sys,re,xbmc,xbmcgui,xbmcplugin,xbmcaddon,urllib,json,time,locale
+import os,sys,re,xbmc,xbmcgui,xbmcplugin,xbmcaddon,urllib,json,time,locale, random
 from resources.lib.modules import net
 from  collections import OrderedDict
 from resources.lib.modules import player
@@ -42,7 +42,8 @@ addonFanart = addon().getAddonInfo('fanart')
 
 img_link = 'https://images-fio.6play.fr/v2/images/%s/raw'
 package_change_needed = 'A hozzáféréshez nagyobb csomagra váltás szükséges.\nRészletek: https://rtl.hu/rtlplusz/szolgaltatasok'
-deviceID_url = 'https://e.m6web.fr/info?customer=rtlhu'
+account_overview_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/app/account_overview/layout?nbPages=2'
+devices_management_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/frontspace/devicesmanagementcenter/layout?nbPages=2'
 profile_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/%s/profiles'
 api_base = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/%s/%s/'
 defaultNumberOfPages = 2
@@ -51,6 +52,7 @@ api_block_url = api_base + 'block/%s?nbPages=%d&page=%d'
 search_url = 'https://nhacvivxxk-dsn.algolia.net/1/indexes/*/queries'
 search_api_key = '5fce02cb376fb2cda773be8a8404598a'
 search_application_id = 'NHACVIVXXK'
+delete_device_url = 'https://6play-users.6play.fr/v3/rtlhu/m6group_web/devices/toRevoke'
 
 class navigator:
     def __init__(self):
@@ -67,13 +69,14 @@ class navigator:
                 addon(addon().getAddonInfo('id')).openSettings()
             self.username = addon().getSetting('email').strip()
             self.password = addon().getSetting('password').strip()
-        #self.setDeviceID()
+        self.setDeviceID()
         self.Login()
         self.base_path = py2_decode(translatePath(addon().getAddonInfo('profile')))
         self.searchFileName = os.path.join(self.base_path, "search.history")
 
     def root(self):
         data = json.loads(net.request(api_url % ('alias', 'home'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        self.addDirectoryItem(py2_encode('[COLOR red]Párosított eszközök törlése[/COLOR]'), 'paireddevices' , '', 'DefaultTVShows.png')
         self.addDirectoryItem(py2_encode('Keresés'), 'getsearches' , '', 'DefaultTVShows.png')
         for block in data['blocks']:
             if block['featureId'] == 'folders_by_service' and block['title']:
@@ -95,7 +98,6 @@ class navigator:
                             break
                     progressDialog.close()
                 for category in allCategory:
-                    #if category['itemContent']['id'] != 'ec439707a9ef0bfc8f74a020859513ab1c022b91':
                     self.addDirectoryItem(py2_encode(category['itemContent']['image']['caption']), 'programs&type=%s&id=%s' % (category['itemContent']['action']['target']['value_layout']['type'], category['itemContent']['action']['target']['value_layout']['id']), '', 'DefaultTVShows.png')
                 break
         self.endDirectory()
@@ -324,10 +326,13 @@ class navigator:
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), False, xbmcgui.ListItem())
 
     def setDeviceID(self):
+        def getRandomHexString(length):
+            hexdigits='0123456789abcdef'
+            return "".join([random.choice(hexdigits) for x in range(length)])
+
         if xbmcaddon.Addon().getSetting('deviceid') == "":
-            r = net.request(deviceID_url)
-            jsonparse = json.loads(r)
-            xbmcaddon.Addon().setSetting('deviceid', jsonparse['device_id'])
+            deviceID = "_luid_%s-%s-%s-%s-%s" % (getRandomHexString(8), getRandomHexString(4), getRandomHexString(4), getRandomHexString(4), getRandomHexString(12))
+            xbmcaddon.Addon().setSetting('deviceid', deviceID)
 
     def consentOnDevice(self, jwtToken):
         device_consents_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/deviceid-%s/consents'
@@ -399,7 +404,16 @@ class navigator:
             js = json.loads(r)
             xbmcaddon.Addon().setSetting('profileid', js[0]['uid'])
             xbmcaddon.Addon().setSetting('jwttoken', '')
-            player.player().getJwtToken()
+            jwtToken = player.player().getJwtToken()
+            accountOverview = json.loads(net.request(account_overview_url, headers={'authorization': 'Bearer %s' % jwtToken}))
+            if accountOverview['redirection'] and accountOverview['redirection']['reasonCode'] == 'devices_gate':
+                xbmcgui.Dialog().ok(u'RTL+ hiba', 'Elérted a párosítható eszközök maximumát! A folytatáshoz a következő ablakban, a párosított eszközök kezelése menüpontban, vagy az RTL+ weboldalán válassz le egy már csatlakoztatott eszközt!')
+                xbmcaddon.Addon().setSetting('loggedin', 'false')
+                if self.deleteDevice():
+                    xbmcaddon.Addon().setSetting('s.timestamp', '0')
+                    self.Login()
+                else:
+                    sys.exit(0)
             return
         else:
             xbmcgui.Dialog().ok(u'Bejelentkez\u00E9si hiba', 'Hiba a bejelentkezéshez szükséges adatok kinyerésekor!')
@@ -500,3 +514,23 @@ class navigator:
         xbmcplugin.setContent(syshandle, type)
         #xbmcplugin.addSortMethod(syshandle, xbmcplugin.SORT_METHOD_TITLE)
         xbmcplugin.endOfDirectory(syshandle, cacheToDisc=True)
+
+    def deleteDevice(self):
+        devices = json.loads(net.request(devices_management_url, headers={'authorization': 'Bearer %s' % xbmcaddon.Addon().getSetting('jwttoken')}))['blocks'][0]['content']['items']
+        connectedItems = []
+        for item in devices:
+            li = xbmcgui.ListItem(item['itemContent']['title'], "%s%s" % (item['itemContent']['extraTitle'], " - [COLOR red]Jelenlegi eszköz[/COLOR]" if 'Jelenlegi' in item['itemContent']['action']['label'] else ""))
+            connectedItems.append(li)
+        itemIndex = xbmcgui.Dialog().select("RTL+ - Párosított eszköz törlése", connectedItems, useDetails = True)
+        if itemIndex >= 0:
+            if 'Jelenlegi' in devices[itemIndex]['itemContent']['action']['label']:
+                xbmcgui.Dialog().ok("RTL+", "A jelenlegi eszköz párosítása nem törölhető!")
+            else:
+                if xbmcgui.Dialog().yesno("RTL+", "Biztosan törli a %s párosítását?" % devices[itemIndex]['itemContent']['title']):
+                    postData = '{"deviceId": "%s"}' % devices[itemIndex]['itemContent']['action']['target']['value_lock']['reasonAttributes']['deviceId']
+                    result = json.loads(net.request(delete_device_url, post=postData.encode('utf-8'), headers={'authorization': 'Bearer %s' % xbmcaddon.Addon().getSetting('jwttoken')}, isPatchRequest = True))
+                    if result["status"] == "torevoke":
+                        return True
+                    else:
+                        xbmcgui.Dialog().ok("RTL+", "A párosítás törlése sikertelen!")
+        return False
