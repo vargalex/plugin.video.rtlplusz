@@ -190,7 +190,8 @@ class player:
             'x-auth-gigya-signature': xbmcaddon.Addon().getSetting('signature'),
             'x-auth-gigya-signature-timestamp': xbmcaddon.Addon().getSetting('s.timestamp'),
             'X-Customer-Name': 'rtlhu',
-            'x-auth-device-id': xbmcaddon.Addon().getSetting('deviceid')
+            'x-auth-device-id': xbmcaddon.Addon().getSetting('deviceid'),
+            'x-auth-device-name': "%s ver.: %s" % (xbmc.getInfoLabel('System.FriendlyName'), xbmc.getInfoLabel('System.BuildVersionCode'))
         }
         if xbmcaddon.Addon().getSetting('profileid') != "":
             headers['x-auth-profile-id'] = xbmcaddon.Addon().getSetting('profileid')

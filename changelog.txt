@@ -1,4 +1,6 @@
-﻿[B]1.0.13[/B]
+﻿[B]1.0.14[/B]
+- Device name beállítás
+[B]1.0.13[/B]
 - Nagy méretű válasz JSON kezelése
 [B]1.0.12[/B]
 - DeviceID kezelése
