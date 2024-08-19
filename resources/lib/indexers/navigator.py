@@ -53,6 +53,8 @@ search_url = 'https://nhacvivxxk-dsn.algolia.net/1/indexes/*/queries'
 search_api_key = '5fce02cb376fb2cda773be8a8404598a'
 search_application_id = 'NHACVIVXXK'
 delete_device_url = 'https://6play-users.6play.fr/v3/rtlhu/m6group_web/devices/toRevoke'
+subscriptions_url = 'https://stores.6cloud.fr/premium/v4/customers/rtlhu/platforms/m6group_web/users/%s/subscriptions'
+desktop_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/navigation/desktop'
 
 class navigator:
     def __init__(self):
@@ -75,31 +77,30 @@ class navigator:
         self.searchFileName = os.path.join(self.base_path, "search.history")
 
     def root(self):
-        data = json.loads(net.request(api_url % ('alias', 'home'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        subscriptionData = json.loads(net.request(subscriptions_url % addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        if len(subscriptionData['current']) > 0:
+            subscriptionName = subscriptionData['current'][0]['offer']['title']
+        else:
+            subscriptionName = "RTL+ Light"
+        if subscriptionName != addon().getSetting("subscriptionname"):
+            addon().setSetting('subscriptionname', subscriptionName)
+            xbmcgui.Dialog().notification("RTL+", "Jelenlegi csomagod: %s" % subscriptionName)
         self.addDirectoryItem(py2_encode('[COLOR red]Párosított eszközök törlése[/COLOR]'), 'paireddevices' , '', 'DefaultTVShows.png')
         self.addDirectoryItem(py2_encode('Keresés'), 'getsearches' , '', 'DefaultTVShows.png')
-        for block in data['blocks']:
-            if block['featureId'] == 'folders_by_service' and block['title']:
-                xbmcgui.Dialog().notification("RTL+", block['title']['long'])
-                allCategory = block['content']['items']
-                if block['content']['pagination']['nextPage']:
-                    progressDialog = xbmcgui.DialogProgress()
-                    progressDialog.create("RTL+", "Kategóriák letöltése folyamatban")
-                    nbPages = (block['content']['pagination']['totalItems'] + block['content']['pagination']['itemsPerPage'] -1) // block['content']['pagination']['itemsPerPage']
-                    for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
-                        currItems = min((page + defaultNumberOfPages + 1) * block['content']['pagination']['itemsPerPage'], block['content']['pagination']['totalItems'])
-                        progressDialog.update(int(round(float(page)/nbPages*100)), 'Kategóriák letöltése folyamatban (' + str(currItems) + '/' + str(block['content']['pagination']['totalItems']) + ')')
-                        pageData = json.loads(net.request(api_block_url % (data['entity']['type'], data['entity']['id'], block['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-                        try:
-                            allCategory += pageData['content']['items']
-                        except:
-                            pass
-                        if progressDialog.iscanceled():
-                            break
-                    progressDialog.close()
-                for category in allCategory:
-                    self.addDirectoryItem(py2_encode(category['itemContent']['image']['caption']), 'programs&type=%s&id=%s' % (category['itemContent']['action']['target']['value_layout']['type'], category['itemContent']['action']['target']['value_layout']['id']), '', 'DefaultTVShows.png')
-                break
+        datas = json.loads(net.request(desktop_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        categories = []
+        for data in datas:
+            if data['type'] == '1':
+                if data['entries']:
+                    for entry in data['entries']:
+                        if entry['target']['type'] == 'layout' and entry['target']['value_layout']['type'].lower() == 'folder':
+                            categories.append({'caption': entry['picto']['caption'], 'id': entry['target']['value_layout']['id']})
+                        for group in entry['groups']:
+                            for entry in group['entries']:
+                                if entry['target']['type'] == 'layout' and entry['target']['value_layout']['type'].lower() == 'folder':
+                                    categories.append({'caption': entry['image']['caption'], 'id': entry['target']['value_layout']['id']})
+        for category in categories:
+            self.addDirectoryItem(py2_encode(category['caption']), 'programs&type=folder&id=%s' % category['id'], '', 'DefaultTVShows.png')
         self.endDirectory()
 
     def showPrograms(self, allItems):
@@ -120,7 +121,7 @@ class navigator:
             prg = {'type': prgType, 'id': prgId, 'extrainfo': extraInfo, 'fanart': fanart, 'thumb': thumb, 'plot': plot}
             prgs[title] = prg
         prgTitles = list(prgs.keys())
-        if (xbmcaddon.Addon().getSetting('sort_programs') == 'true'):
+        if (addon().getSetting('sort_programs') == 'true'):
             prgTitles.sort(key=locale.strxfrm)
         for prg in prgTitles:
             if prgs[prg]['type'] == 'program':
@@ -262,12 +263,12 @@ class navigator:
                 if progressDialog and progressDialog.iscanceled():
                     break
             progressDialog.close()
-        hidePlus = xbmcaddon.Addon().getSetting('hide_plus') == 'true'
+        hidePlus = addon().getSetting('hide_plus') == 'true'
 
         sortedEpisodes = episodes
-        if (xbmcaddon.Addon().getSetting('sort_episodes') == 'true'):
+        if (addon().getSetting('sort_episodes') == 'true'):
             reverseSorting = False
-            if (xbmcaddon.Addon().getSetting('sort_reverse') == 'true'):
+            if (addon().getSetting('sort_reverse') == 'true'):
                 reverseSorting = True
             if title_sorter.all_match_same_pattern(episodes):
                 sortedEpisodes = title_sorter.sorted(episodes, reverse=reverseSorting)
@@ -330,16 +331,16 @@ class navigator:
             hexdigits='0123456789abcdef'
             return "".join([random.choice(hexdigits) for x in range(length)])
 
-        if xbmcaddon.Addon().getSetting('deviceid') == "":
+        if addon().getSetting('deviceid') == "":
             deviceID = "_luid_%s-%s-%s-%s-%s" % (getRandomHexString(8), getRandomHexString(4), getRandomHexString(4), getRandomHexString(4), getRandomHexString(12))
-            xbmcaddon.Addon().setSetting('deviceid', deviceID)
+            addon().setSetting('deviceid', deviceID)
 
     def consentOnDevice(self, jwtToken):
         device_consents_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/deviceid-%s/consents'
-        net.request(device_consents_url % xbmcaddon.Addon().getSetting('deviceid'), post='{"analytics":{"consent":true,"form":"explicit"},"adtargeting":{"consent":true,"form":"explicit"},"personalization":{"consent":true,"form":"explicit"},"multidevicematching":{"consent":true,"form":"explicit"}}'.encode('utf-8'), headers={'authorization': 'Bearer %s' % jwtToken, 'content-type': 'application/json'})
+        net.request(device_consents_url % addon().getSetting('deviceid'), post='{"analytics":{"consent":true,"form":"explicit"},"adtargeting":{"consent":true,"form":"explicit"},"personalization":{"consent":true,"form":"explicit"},"multidevicematching":{"consent":true,"form":"explicit"}}'.encode('utf-8'), headers={'authorization': 'Bearer %s' % jwtToken, 'content-type': 'application/json'})
 
     def Login(self):
-        t1 = int(xbmcaddon.Addon().getSetting('s.timestamp'))
+        t1 = int(addon().getSetting('s.timestamp'))
         t2 = int(time.time())
         update = (abs(t2 - t1) / 3600) >= 24 or t1 == 0
         if update == False:
@@ -389,50 +390,50 @@ class navigator:
 
             if 'errorMessage' in jsonparse:
                 xbmcgui.Dialog().ok(u'Bejelentkez\u00E9si hiba', jsonparse['errorMessage'])
-                xbmcaddon.Addon().setSetting('loggedin', 'false')
-                xbmcaddon.Addon().setSetting('s.timestamp', '0')
+                addon().setSetting('loggedin', 'false')
+                addon().setSetting('s.timestamp', '0')
                 sys.exit(0)
 
-            xbmcaddon.Addon().setSetting('userid', jsonparse['UID'])
-            xbmcaddon.Addon().setSetting('signature', jsonparse['UIDSignature'])
-            xbmcaddon.Addon().setSetting('s.timestamp', jsonparse['signatureTimestamp'])
-            xbmcaddon.Addon().setSetting('loggedin', 'true')
+            addon().setSetting('userid', jsonparse['UID'])
+            addon().setSetting('signature', jsonparse['UIDSignature'])
+            addon().setSetting('s.timestamp', jsonparse['signatureTimestamp'])
+            addon().setSetting('loggedin', 'true')
 
             jwtToken = player.player().getJwtToken()
             self.consentOnDevice(jwtToken)
-            r = net.request(profile_url % xbmcaddon.Addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % jwtToken})
+            r = net.request(profile_url % addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % jwtToken})
             js = json.loads(r)
-            xbmcaddon.Addon().setSetting('profileid', js[0]['uid'])
-            xbmcaddon.Addon().setSetting('jwttoken', '')
+            addon().setSetting('profileid', js[0]['uid'])
+            addon().setSetting('jwttoken', '')
             jwtToken = player.player().getJwtToken()
             accountOverview = json.loads(net.request(account_overview_url, headers={'authorization': 'Bearer %s' % jwtToken}))
             if accountOverview['redirection'] and accountOverview['redirection']['reasonCode'] == 'devices_gate':
                 xbmcgui.Dialog().ok(u'RTL+ hiba', 'Elérted a párosítható eszközök maximumát! A folytatáshoz a következő ablakban, a párosított eszközök kezelése menüpontban, vagy az RTL+ weboldalán válassz le egy már csatlakoztatott eszközt!')
-                xbmcaddon.Addon().setSetting('loggedin', 'false')
+                addon().setSetting('loggedin', 'false')
                 if self.deleteDevice():
-                    xbmcaddon.Addon().setSetting('s.timestamp', '0')
+                    addon().setSetting('s.timestamp', '0')
                     self.Login()
                 else:
                     sys.exit(0)
             return
         else:
             xbmcgui.Dialog().ok(u'Bejelentkez\u00E9si hiba', 'Hiba a bejelentkezéshez szükséges adatok kinyerésekor!')
-        xbmcaddon.Addon().setSetting('loggedin', 'false')
-        xbmcaddon.Addon().setSetting('s.timestamp', '0')
+        addon().setSetting('loggedin', 'false')
+        addon().setSetting('s.timestamp', '0')
         sys.exit(0)
 
     def Logout(self):
         dialog = xbmcgui.Dialog()
         if 1 == dialog.yesno(u'RTL+ kijelentkez\u00E9s', u'Val\u00F3ban ki szeretn\u00E9l jelentkezni?', '', ''):
-            xbmcaddon.Addon().setSetting('userid', '')
-            xbmcaddon.Addon().setSetting('signature', '')
-            xbmcaddon.Addon().setSetting('s.timestamp', '0')
-            xbmcaddon.Addon().setSetting('loggedin', 'false')
-            xbmcaddon.Addon().setSetting('email', '')
-            xbmcaddon.Addon().setSetting('password', '')
-            xbmcaddon.Addon().setSetting('deviceid', '')
-            xbmcaddon.Addon().setSetting('jwttoken', '')
-            xbmcaddon.Addon().setSetting('profileid', '')
+            addon().setSetting('userid', '')
+            addon().setSetting('signature', '')
+            addon().setSetting('s.timestamp', '0')
+            addon().setSetting('loggedin', 'false')
+            addon().setSetting('email', '')
+            addon().setSetting('password', '')
+            addon().setSetting('deviceid', '')
+            addon().setSetting('jwttoken', '')
+            addon().setSetting('profileid', '')
             xbmc.executebuiltin("XBMC.Container.Update(path,replace)")
             xbmc.executebuiltin("XBMC.ActivateWindow(Home)")
             dialog.ok('RTL+', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
@@ -516,7 +517,7 @@ class navigator:
         xbmcplugin.endOfDirectory(syshandle, cacheToDisc=True)
 
     def deleteDevice(self):
-        devices = json.loads(net.request(devices_management_url, headers={'authorization': 'Bearer %s' % xbmcaddon.Addon().getSetting('jwttoken')}))['blocks'][0]['content']['items']
+        devices = json.loads(net.request(devices_management_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))['blocks'][0]['content']['items']
         connectedItems = []
         for item in devices:
             li = xbmcgui.ListItem(item['itemContent']['title'], "%s%s" % (item['itemContent']['extraTitle'], " - [COLOR red]Jelenlegi eszköz[/COLOR]" if 'Jelenlegi' in item['itemContent']['action']['label'] else ""))
@@ -528,7 +529,7 @@ class navigator:
             else:
                 if xbmcgui.Dialog().yesno("RTL+", "Biztosan törli a %s párosítását?" % devices[itemIndex]['itemContent']['title']):
                     postData = '{"deviceId": "%s"}' % devices[itemIndex]['itemContent']['action']['target']['value_lock']['reasonAttributes']['deviceId']
-                    result = json.loads(net.request(delete_device_url, post=postData.encode('utf-8'), headers={'authorization': 'Bearer %s' % xbmcaddon.Addon().getSetting('jwttoken')}, isPatchRequest = True))
+                    result = json.loads(net.request(delete_device_url, post=postData.encode('utf-8'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}, isPatchRequest = True))
                     if result["status"] == "torevoke":
                         return True
                     else:

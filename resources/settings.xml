@@ -21,6 +21,7 @@
         <setting type="bool" id="loggedin" visible="false" default="false" />
         <setting id="logout" type="action" label="[B][COLOR red]Kijelentkezés[/COLOR][/B]" option="close" action="RunPlugin(plugin://plugin.video.rtlplusz/?action=logout)" visible="eq(-1,true)"></setting>
         <setting type="text" id="jwttoken" visible="false" default="" />
+        <setting type="text" id="subscriptionname" visible="false" default="" />
     </category>
     <category label="InputStream">
         <setting id="drmsettings" type="action" label="InputStream Adaptive beállítások" option="close" action="RunPlugin(plugin://plugin.video.rtlplusz/?action=drmSettings)"></setting>
