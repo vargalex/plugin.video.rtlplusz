@@ -81,7 +81,7 @@ def request(url, post=None, headers={}, redirect=True, timeout=30, isPatchReques
         result = response.headers.get('location')
 
     else: 
-        result = response.read(5242880)
+        result = response.read()
     response.close()
     if (sys.version_info[0] == 3 and not isinstance(result, str)):
         return result.decode('utf-8')

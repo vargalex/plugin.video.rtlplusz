@@ -1,4 +1,6 @@
-﻿[B]1.0.12[/B]
+﻿[B]1.0.13[/B]
+- Nagy méretű válasz JSON kezelése
+[B]1.0.12[/B]
 - DeviceID kezelése
 - Bejelentkezett eszközök törlése
 [B]1.0.11[/B]
