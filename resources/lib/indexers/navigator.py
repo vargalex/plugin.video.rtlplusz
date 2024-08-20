@@ -434,6 +434,7 @@ class navigator:
             addon().setSetting('deviceid', '')
             addon().setSetting('jwttoken', '')
             addon().setSetting('profileid', '')
+            addon().setSetting('subscriptionname', '')
             xbmc.executebuiltin("XBMC.Container.Update(path,replace)")
             xbmc.executebuiltin("XBMC.ActivateWindow(Home)")
             dialog.ok('RTL+', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
