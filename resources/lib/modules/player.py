@@ -50,7 +50,7 @@ class player:
         if dash_url != []:
             # Inputstream and DRM
             #manifest_url = net.request(dash_url[0], redirect=False)
-            #stream_url = os.path.dirname(manifest_url) + '/Manifest.mpd'         
+            #stream_url = os.path.dirname(manifest_url) + '/Manifest.mpd'
             stream_url=dash_url[0]
 
             stream_url = net.request(stream_url, redirect=False)

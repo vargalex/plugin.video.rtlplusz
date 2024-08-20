@@ -1,4 +1,4 @@
-﻿[B]1.0.15[/B]
+[B]1.0.15[/B]
 - Kategóriák, illetve előfizetés típus lekérdezésének gyorsítása
 [B]1.0.14[/B]
 - Device name beállítás

@@ -52,7 +52,7 @@ def request(url, post=None, headers={}, redirect=True, timeout=30, isPatchReques
 
     if isinstance(post, dict):
         post = urlencode(post).encode('utf-8')
-    
+
     if redirect == False:
 
         class NoRedirectHandler(urllib2.HTTPRedirectHandler):
@@ -80,7 +80,7 @@ def request(url, post=None, headers={}, redirect=True, timeout=30, isPatchReques
     if redirect == False:
         result = response.headers.get('location')
 
-    else: 
+    else:
         result = response.read()
     response.close()
     if (sys.version_info[0] == 3 and not isinstance(result, str)):
