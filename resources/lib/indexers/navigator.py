@@ -426,6 +426,7 @@ class navigator:
     def Logout(self):
         dialog = xbmcgui.Dialog()
         if 1 == dialog.yesno(u'RTL+ kijelentkez\u00E9s', u'Val\u00F3ban ki szeretn\u00E9l jelentkezni?', '', ''):
+            net.request(revoke_current_device_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}, isPatchRequest = True)
             addon().setSetting('userid', '')
             addon().setSetting('signature', '')
             addon().setSetting('s.timestamp', '0')
@@ -436,7 +437,6 @@ class navigator:
             addon().setSetting('jwttoken', '')
             addon().setSetting('profileid', '')
             addon().setSetting('subscriptionname', '')
-            net.request(revoke_current_device_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}, isPatchRequest = True)
             xbmc.executebuiltin("XBMC.Container.Update(path,replace)")
             xbmc.executebuiltin("XBMC.ActivateWindow(Home)")
             dialog.ok('RTL+', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
