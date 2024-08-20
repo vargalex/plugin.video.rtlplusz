@@ -140,7 +140,7 @@ class navigator:
         if not blockid:
             data = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
             for block in data['blocks']:
-                if (block['title'] and block['featureId'] == 'programs_by_tags' and 'Legújabb részek' not in py2_encode(block['title']['long']) and 'Ismeretterjesztő' not in py2_encode(block['title']['long'])) or (block['title'] and block['featureId'] == 'programs_by_folder_by_service' and block['title'] and block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long']) or (block['featureId'] == 'lives_by_services') or (block['featureId'] == 'videos_by_subcat_by_program'):
+                if (block['title'] and block['featureId'] == 'programs_by_tags' and 'Legújabb részek' not in py2_encode(block['title']['long']) and 'Ismeretterjesztő' not in py2_encode(block['title']['long'])) or (block['title'] and block['featureId'] == 'programs_by_folder_by_service' and block['title'] and block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long']) or (block['title'] and block['featureId'] == 'lives_by_services') or (block['title'] and block['featureId'] == 'videos_by_subcat_by_program'):
                 #if (block['featureId'] == 'programs_by_tags' and 'Legújabb részek' not in py2_encode(block['title']['long']) and 'Ismeretterjesztő' not in py2_encode(block['title']['long'])) or (block['featureId'] == 'programs_by_folder_by_service' and block['title'] and block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long']) or (block['featureId'] == 'lives_by_services') or (block['featureId'] == 'videos_by_subcat_by_program'):
                     allTags.append({'id': block['id'], 'title': block['title']['long']})
                 if (block['featureId'] == 'programs_by_folder_by_service') and (not block['title'] or (block['title'] and not block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long'])):
@@ -520,21 +520,30 @@ class navigator:
         xbmcplugin.endOfDirectory(syshandle, cacheToDisc=True)
 
     def deleteDevice(self):
-        devices = json.loads(net.request(devices_management_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))['blocks'][0]['content']['items']
-        connectedItems = []
-        for item in devices:
-            li = xbmcgui.ListItem(item['itemContent']['title'], "%s%s" % (py2_encode(item['itemContent']['extraTitle']), " - [COLOR red]Jelenlegi eszköz[/COLOR]" if 'Jelenlegi' in py2_encode(item['itemContent']['action']['label']) else ""))
-            connectedItems.append(li)
-        itemIndex = xbmcgui.Dialog().select("RTL+ - Párosított eszköz törlése", connectedItems, useDetails = True)
-        if itemIndex >= 0:
-            if 'Jelenlegi' in py2_encode(devices[itemIndex]['itemContent']['action']['label']):
-                xbmcgui.Dialog().ok("RTL+", "A jelenlegi eszköz párosítása nem törölhető!")
-            else:
-                if xbmcgui.Dialog().yesno("RTL+", "Biztosan törli a %s párosítását?" % py2_encode(devices[itemIndex]['itemContent']['title'])):
-                    postData = '{"deviceId": "%s"}' % devices[itemIndex]['itemContent']['action']['target']['value_lock']['reasonAttributes']['deviceId']
-                    result = json.loads(net.request(delete_device_url, post=postData.encode('utf-8'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}, isPatchRequest = True))
-                    if result["status"] == "torevoke":
-                        return True
-                    else:
-                        xbmcgui.Dialog().ok("RTL+", "A párosítás törlése sikertelen!")
+        data = json.loads(net.request(devices_management_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        devicesBlock = None
+        for block in data['blocks']:
+            if 'featureId' in block and block['featureId'] == 'devices_by_user':
+                devicesBlock = block
+                break
+        if devicesBlock:
+            devices = devicesBlock['content']['items']
+            connectedItems = []
+            for item in devices:
+                li = xbmcgui.ListItem(item['itemContent']['title'], "%s%s" % (py2_encode(item['itemContent']['extraTitle']), " - [COLOR red]Jelenlegi eszköz[/COLOR]" if 'Jelenlegi' in py2_encode(item['itemContent']['action']['label']) else ""))
+                connectedItems.append(li)
+            itemIndex = xbmcgui.Dialog().select("RTL+ - Párosított eszköz törlése", connectedItems, useDetails = True)
+            if itemIndex >= 0:
+                if 'Jelenlegi' in py2_encode(devices[itemIndex]['itemContent']['action']['label']):
+                    xbmcgui.Dialog().ok("RTL+", "A jelenlegi eszköz párosítása nem törölhető!")
+                else:
+                    if xbmcgui.Dialog().yesno("RTL+", "Biztosan törli a %s párosítását?" % py2_encode(devices[itemIndex]['itemContent']['title'])):
+                        postData = '{"deviceId": "%s"}' % devices[itemIndex]['itemContent']['action']['target']['value_lock']['reasonAttributes']['deviceId']
+                        result = json.loads(net.request(delete_device_url, post=postData.encode('utf-8'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}, isPatchRequest = True))
+                        if result["status"] == "torevoke":
+                            return True
+                        else:
+                            xbmcgui.Dialog().ok("RTL+", "A párosítás törlése sikertelen!")
+        else:
+            xbmcgui.Dialog().ok("RTL+", "Hiba az eszközök lekérése során! Kérlek töröld a beállításokat, vagy jelentkezz ki a kiegészítő beállításaiban!")
         return False
