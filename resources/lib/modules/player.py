@@ -25,8 +25,10 @@ from resources.lib.modules import m3u8_parser
 from resources.lib.modules.utils import py2_encode
 if sys.version_info[0] == 3:
     from urllib.parse import urlparse
+    buildVersionStr = "System.BuildVersionCode"
 else:
     from urlparse import urlparse
+    buildVersionStr = "System.BuildVersion"
 
 token_url = 'https://drm.6cloud.fr/v1/customers/rtlhu/platforms/m6group_web/services/rtlhu_rtl_klub/users/%s/%s/%s/upfront-token'
 
@@ -191,7 +193,7 @@ class player:
             'x-auth-gigya-signature-timestamp': xbmcaddon.Addon().getSetting('s.timestamp'),
             'X-Customer-Name': 'rtlhu',
             'x-auth-device-id': xbmcaddon.Addon().getSetting('deviceid'),
-            'x-auth-device-name': "%s ver.: %s" % (xbmc.getInfoLabel('System.FriendlyName'), xbmc.getInfoLabel('System.BuildVersionCode'))
+            'x-auth-device-name': "%s ver.: %s" % (xbmc.getInfoLabel('System.FriendlyName'), xbmc.getInfoLabel(buildVersionStr).split(" ")[0])
         }
         if xbmcaddon.Addon().getSetting('profileid') != "":
             headers['x-auth-profile-id'] = xbmcaddon.Addon().getSetting('profileid')

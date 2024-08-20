@@ -520,14 +520,14 @@ class navigator:
         devices = json.loads(net.request(devices_management_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))['blocks'][0]['content']['items']
         connectedItems = []
         for item in devices:
-            li = xbmcgui.ListItem(item['itemContent']['title'], "%s%s" % (item['itemContent']['extraTitle'], " - [COLOR red]Jelenlegi eszköz[/COLOR]" if 'Jelenlegi' in item['itemContent']['action']['label'] else ""))
+            li = xbmcgui.ListItem(item['itemContent']['title'], "%s%s" % (py2_encode(item['itemContent']['extraTitle']), " - [COLOR red]Jelenlegi eszköz[/COLOR]" if 'Jelenlegi' in py2_encode(item['itemContent']['action']['label']) else ""))
             connectedItems.append(li)
         itemIndex = xbmcgui.Dialog().select("RTL+ - Párosított eszköz törlése", connectedItems, useDetails = True)
         if itemIndex >= 0:
-            if 'Jelenlegi' in devices[itemIndex]['itemContent']['action']['label']:
+            if 'Jelenlegi' in py2_encode(devices[itemIndex]['itemContent']['action']['label']):
                 xbmcgui.Dialog().ok("RTL+", "A jelenlegi eszköz párosítása nem törölhető!")
             else:
-                if xbmcgui.Dialog().yesno("RTL+", "Biztosan törli a %s párosítását?" % devices[itemIndex]['itemContent']['title']):
+                if xbmcgui.Dialog().yesno("RTL+", "Biztosan törli a %s párosítását?" % py2_encode(devices[itemIndex]['itemContent']['title'])):
                     postData = '{"deviceId": "%s"}' % devices[itemIndex]['itemContent']['action']['target']['value_lock']['reasonAttributes']['deviceId']
                     result = json.loads(net.request(delete_device_url, post=postData.encode('utf-8'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}, isPatchRequest = True))
                     if result["status"] == "torevoke":
