@@ -19,7 +19,7 @@
 '''
 
 
-import os,sys,re,xbmc,xbmcgui,xbmcplugin,xbmcaddon,urllib,json,time,locale, random
+import os,sys,re,xbmc,xbmcgui,xbmcplugin,xbmcaddon,urllib,json,time,locale, uuid
 from resources.lib.modules import net
 from  collections import OrderedDict
 from resources.lib.modules import player
@@ -328,12 +328,8 @@ class navigator:
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), False, xbmcgui.ListItem())
 
     def setDeviceID(self):
-        def getRandomHexString(length):
-            hexdigits='0123456789abcdef'
-            return "".join([random.choice(hexdigits) for x in range(length)])
-
         if addon().getSetting('deviceid') == "":
-            deviceID = "_luid_%s-%s-%s-%s-%s" % (getRandomHexString(8), getRandomHexString(4), getRandomHexString(4), getRandomHexString(4), getRandomHexString(12))
+            deviceID = "_luid_%s" % str(uuid.uuid4())
             addon().setSetting('deviceid', deviceID)
 
     def consentOnDevice(self, jwtToken):
