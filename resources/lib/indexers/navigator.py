@@ -108,6 +108,7 @@ class navigator:
         prgs={}
         for program in allItems:
             prg = {}
+            id = program['itemContent']['id']
             title = py2_encode(program['itemContent']['title'] if program['itemContent']['title'] else program['itemContent']['extraTitle'] if program['itemContent']['extraTitle'] else program['itemContent']['image']['caption'])
             try: thumb = img_link % program['itemContent']['image']['id']
             except: thumb = ''
@@ -119,18 +120,18 @@ class navigator:
             extraInfo = ""
             if program['itemContent']['highlight']:
                 extraInfo = ' [I][COLOR silver](%s)[/COLOR][/I]' % py2_encode(program['itemContent']['highlight'])
-            prg = {'type': prgType, 'id': prgId, 'extrainfo': extraInfo, 'fanart': fanart, 'thumb': thumb, 'plot': plot}
-            prgs[title] = prg
-        prgTitles = list(prgs.keys())
+            prg = {'title': title, 'type': prgType, 'id': prgId, 'extrainfo': extraInfo, 'fanart': fanart, 'thumb': thumb, 'plot': plot}
+            prgs[id] = prg
+        prgIds = list(prgs.keys())
         if (addon().getSetting('sort_programs') == 'true'):
-            prgTitles.sort(key=locale.strxfrm)
-        for prg in prgTitles:
+            prgIds = sorted(prgIds, key=lambda x: locale.strxfrm(prgs[x]['title']))
+        for prg in prgIds:
             if prgs[prg]['type'] == 'program':
-                self.addDirectoryItem("%s%s" % (prg, prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
+                self.addDirectoryItem("%s%s" % (prgs[prg]['title'], prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
             elif prgs[prg]['type'] == 'folder':
-                self.addDirectoryItem(prg, 'programs&type=%s&id=%s' % (prgs[prg]['type'], prgs[prg]['id']), '', 'DefaultTVShows.png')
+                self.addDirectoryItem(prgs[prg]['title'], 'programs&type=%s&id=%s' % (prgs[prg]['type'], prgs[prg]['id']), '', 'DefaultTVShows.png')
             else:
-                self.addDirectoryItem(prg if prgs[prg]['id'] != 'offers' else '[COLOR red]%s[/COLOR]' % prg, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(prgs[prg]['type']), quote_plus(prgs[prg]['id']), quote_plus(json.dumps({'title': prg, 'plot': plot, 'duration': 0})), thumb), prgs[prg]['thumb'], 'DefaultTVShows.png', meta={'plot': prgs[prg]['plot']}, isFolder=False, Fanart=prgs[prg]['fanart'])
+                self.addDirectoryItem(prgs[prg]['title'] if prgs[prg]['id'] != 'offers' else '[COLOR red]%s[/COLOR]' % prgs[prg]['title'], 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(prgs[prg]['type']), quote_plus(prgs[prg]['id']), quote_plus(json.dumps({'title': prgs[prg]['title'], 'plot': plot, 'duration': 0})), thumb), prgs[prg]['thumb'], 'DefaultTVShows.png', meta={'plot': prgs[prg]['plot']}, isFolder=False, Fanart=prgs[prg]['fanart'])
         self.endDirectory(type='tvshows')
 
     def programs(self, ptype, pid, blockid=None):
@@ -222,7 +223,7 @@ class navigator:
         subcats = []
         if subcat == None:
             for block in content['blocks']:
-                if block['featureId'] in ['videos_by_tags', 'channels_by_platform']:
+                if block['featureId'] in ['videos_by_tags', 'channels_by_platform', 'lives_by_services']:
                     subcats = []
                     subcat = block['id'].split('--')[1]
                     break
