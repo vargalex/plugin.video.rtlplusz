@@ -360,7 +360,7 @@ class navigator:
             xbmc.log('RTL+: API data found in main javascript', xbmc.LOGINFO)
         else:
             xbmc.log('RTL+: API data not found in main javascript trying in client javascript', xbmc.LOGINFO)
-            client_js = re.search('''<script type="module" src=['"](\/client-.+?)['"]''', plusz_source).group(1)
+            client_js = re.search('''<script .* src=['"](\/client-.+?)['"]''', plusz_source).group(1)
             client_js_source = net.request(urlparse.urljoin(plusz_baseUrl, client_js))
             gigya_start = client_js_source.find('"gigya":{')
             if gigya_start > 0:
