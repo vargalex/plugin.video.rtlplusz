@@ -348,19 +348,19 @@ class navigator:
         plusz_baseUrl = 'https://www.rtlplusz.hu'
 
         plusz_source = net.request(plusz_baseUrl)
-        main_js = re.search('''<script async data-chunk="main" src=['"](\/main-.+?)['"]''', plusz_source).group(1)
+        main_js = re.search(r'''<script .* src=['"](\/main-.+?)['"]''', plusz_source).group(1)
         api_src = net.request(urlparse.urljoin(plusz_baseUrl, main_js))
-        api_src = re.findall(r'(?:=)([^}]+login.rtlmost.hu[^}]+})', api_src)
+        api_src = re.findall(r',([^}]+login.rtlmost.hu[^}]+})', api_src)
         api_cdn = None
         api_key = None
         if api_src:
-            api_src = json.loads(re.sub('([{,:])(\w+)([},:])','\\1\"\\2\"\\3', api_src[0]))
+            api_src = json.loads(re.sub(r'([{,:])(\w+)([},:])','\\1\"\\2\"\\3', "{%s" % api_src[0]))
             api_cdn = api_src['cdn']
             api_key = api_src['key']
             xbmc.log('RTL+: API data found in main javascript', xbmc.LOGINFO)
         else:
             xbmc.log('RTL+: API data not found in main javascript trying in client javascript', xbmc.LOGINFO)
-            client_js = re.search('''<script .* src=['"](\/client-.+?)['"]''', plusz_source).group(1)
+            client_js = re.search(r'''<script .* src=['"](\/client-.+?)['"]''', plusz_source).group(1)
             client_js_source = net.request(urlparse.urljoin(plusz_baseUrl, client_js))
             gigya_start = client_js_source.find('"gigya":{')
             if gigya_start > 0:

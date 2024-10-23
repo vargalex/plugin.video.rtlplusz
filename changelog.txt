@@ -1,3 +1,5 @@
+[B]1.0.19[/B]
+- Main javascript adatkinyerés javítása
 [B]1.0.18[/B]
 - Forrás változás követése: Client javascript url-jének parse-olása
 [B]1.0.17[/B]
