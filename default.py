@@ -26,7 +26,6 @@ else:
     from urlparse import parse_qsl
 from resources.lib.indexers.navigator import navigator
 
-
 params = dict(parse_qsl(sys.argv[2].replace('?','')))
 
 action = params.get('action')
@@ -80,3 +79,6 @@ elif action == 'deletesearchhistory':
 
 elif action == 'paireddevices':
     navigator().deleteDevice()
+
+elif action == 'clearcache':
+    navigator().clearCache()

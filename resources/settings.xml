@@ -8,6 +8,9 @@
         <setting label="Epizódok sorrendbe rendezésének kísérlete" type="bool" id="sort_episodes" default="false" />
         <setting label="Fordított sorrend" type="bool" id="sort_reverse" default="true" visible="eq(-1,true)" />
         <setting label="Műsorok sorrendbe rendezése" type="bool" id="sort_programs" default="false" />
+        <setting label="Gyorsítótár" type="lsep" />
+        <setting label="Cache időtartam (óra)" type="slider" id="cachetime" range="0,1,24" default="4" option="int" />
+        <setting id="clearcache" type="action" label="[B][COLOR red]Gyorsítótár törlése[/COLOR][/B]" option="close" action="RunPlugin(plugin://plugin.video.rtlplusz/?action=clearcache)"></setting>
     </category>
     <category label="Bejelentkezés">
         <setting label="RTL+ bejelentkezés" type="lsep" />

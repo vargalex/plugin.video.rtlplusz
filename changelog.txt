@@ -1,3 +1,5 @@
+[B]1.0.20[/B]
+- Cache-elés megvalósítása (default 4 óra, beállításokban módosítható)
 [B]1.0.19[/B]
 - Main javascript adatkinyerés javítása
 [B]1.0.18[/B]

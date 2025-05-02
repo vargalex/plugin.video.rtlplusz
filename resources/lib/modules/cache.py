@@ -1,16 +1,22 @@
 # -*- coding: utf-8 -*-
 
-import re,hashlib,time,xbmc,os,xbmcaddon
+import re,hashlib,time, os, xbmcaddon, xbmcgui, xbmc
 
 try:
     from sqlite3 import dbapi2 as database
 except:
     from pysqlite2 import dbapi2 as database
 
-from resources.lib.modules.utils import py2_encode
+from resources.lib.modules.utils import py2_encode, py2_decode
 
-addonInfo = xbmcaddon.Addon().getAddonInfo
-dataPath = xbmc.translatePath(addonInfo('profile')).decode('utf-8')
+try:
+    from xbmcvfs import translatePath
+except:
+    from xbmc import translatePath
+
+from xbmcvfs import mkdir
+
+dataPath = py2_decode(translatePath(xbmcaddon.Addon().getAddonInfo('profile')))
 cacheFile = os.path.join(dataPath, 'cache.db')
 
 def get(function, timeout, *args, **table):
@@ -21,7 +27,7 @@ def get(function, timeout, *args, **table):
         f = re.sub('.+\smethod\s|.+function\s|\sat\s.+|\sof\s.+', '', f)
 
         a = hashlib.md5()
-        for i in args: a.update(str(i))
+        for i in args: a.update(str(i).encode('utf-8'))
         a = str(a.hexdigest())
     except:
         pass
@@ -32,7 +38,7 @@ def get(function, timeout, *args, **table):
         table = 'rel_list'
 
     try:
-        control.makeFile(dataPath)
+        mkdir(dataPath)
         dbcon = database.connect(cacheFile)
         dbcur = dbcon.cursor()
         dbcur.execute("SELECT * FROM %s WHERE func = '%s' AND args = '%s'" % (table, f, a))
@@ -92,7 +98,7 @@ def timeout(function, *args, **table):
         table = 'rel_list'
 
     try:
-        control.makeFile(dataPath)
+        mkdir(dataPath)
         dbcon = database.connect(cacheFile)
         dbcur = dbcon.cursor()
         dbcur.execute("SELECT * FROM %s WHERE func = '%s' AND args = '%s'" % (table, f, a))
@@ -100,3 +106,29 @@ def timeout(function, *args, **table):
         return int(match[3])
     except:
         return
+
+
+def clear(table=None):
+    try:
+        xbmc.executebuiltin('Dialog.Close(busydialog)')
+
+        if table == None: table = ['rel_list', 'rel_lib']
+        elif not type(table) == list: table = [table]
+
+        yes = xbmcgui.Dialog().yesno('Gyorsítótár törlése', 'Biztos benne?')
+        if not yes: return
+
+        dbcon = database.connect(cacheFile)
+        dbcur = dbcon.cursor()
+
+        for t in table:
+            try:
+                dbcur.execute("DROP TABLE IF EXISTS %s" % t)
+                dbcur.execute("VACUUM")
+                dbcon.commit()
+            except:
+                pass
+
+        xbmcgui.Dialog().notification("RTL+", u'Folyamat befejez\u0151d\u00F6tt')
+    except:
+        pass

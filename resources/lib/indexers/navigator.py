@@ -20,9 +20,8 @@
 
 
 import os,sys,re,xbmc,xbmcgui,xbmcplugin,xbmcaddon,urllib,json,time,locale, uuid
-from resources.lib.modules import net
+from resources.lib.modules import net, player, cache
 from  collections import OrderedDict
-from resources.lib.modules import player
 
 if sys.version_info[0] == 3:
     import urllib.parse as urlparse
@@ -76,6 +75,7 @@ class navigator:
         self.Login()
         self.base_path = py2_decode(translatePath(addon().getAddonInfo('profile')))
         self.searchFileName = os.path.join(self.base_path, "search.history")
+        self.cacheTime = addon().getSettingInt('cachetime')
 
     def root(self):
         subscriptionData = json.loads(net.request(subscriptions_url % addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
@@ -135,47 +135,59 @@ class navigator:
         self.endDirectory(type='tvshows')
 
     def programs(self, ptype, pid, blockid=None):
-        allTags = []
-        allItems = []
-        processBlock = None
-        if not blockid:
+        def getPrograms(ptype, pid):
+            tags = []
+            currentBlock = None
             data = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
             for block in data['blocks']:
                 if (block['title'] and block['featureId'] == 'programs_by_tags' and 'Legújabb részek' not in py2_encode(block['title']['long']) and 'Ismeretterjesztő' not in py2_encode(block['title']['long'])) or (block['title'] and block['featureId'] == 'programs_by_folder_by_service' and block['title'] and block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long']) or (block['title'] and block['featureId'] == 'lives_by_services') or (block['title'] and block['featureId'] == 'videos_by_subcat_by_program'):
                 #if (block['featureId'] == 'programs_by_tags' and 'Legújabb részek' not in py2_encode(block['title']['long']) and 'Ismeretterjesztő' not in py2_encode(block['title']['long'])) or (block['featureId'] == 'programs_by_folder_by_service' and block['title'] and block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long']) or (block['featureId'] == 'lives_by_services') or (block['featureId'] == 'videos_by_subcat_by_program'):
-                    allTags.append({'id': block['id'], 'title': block['title']['long']})
+                    tags.append({'id': block['id'], 'title': block['title']['long']})
                 if (block['featureId'] == 'programs_by_folder_by_service') and (not block['title'] or (block['title'] and not block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long'])):
-                    allTags.append({'id': block['id'], 'title': 'Összes'})
+                    tags.append({'id': block['id'], 'title': 'Összes'})
                 if (block['featureId'] == 'videos_by_program'):
-                    allTags.append({'id': block['id'], 'title': block['title']['long'] if block['title'] and block['title']['long'] and block['title']['long'].strip() != "" else 'Egyéb'})
+                    tags.append({'id': block['id'], 'title': block['title']['long'] if block['title'] and block['title']['long'] and block['title']['long'].strip() != "" else 'Egyéb'})
                 if block['featureId'] == 'folders_by_service' and block['templateId'] == 'FlatRectangleList' and block['id'] != data['blocks'][-1]['id']:
-                    allTags.append({'id': block['id'], 'title': 'Kategóriák'})
+                    tags.append({'id': block['id'], 'title': 'Kategóriák'})
                 if (processBlock == None) and (block['featureId'] == 'programs_by_folder_by_service') and (not block['title'] or (block['title'] and block['title']['long'] and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long'])):
-                    processBlock = block
+                    currentBlock = block
+            return tags, currentBlock
+
+        def getProgramsByBlockId(ptype, pid, blockid):
+            return json.loads(net.request(api_block_url % (ptype, pid, blockid, defaultNumberOfPages, 1), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+
+        def loadAllItems(processBlock, ptype, pid):
+            items = processBlock['content']['items']
+            if processBlock['content']['pagination']['nextPage']:
+                progressDialog = None
+                nbPages = (processBlock['content']['pagination']['totalItems'] + processBlock['content']['pagination']['itemsPerPage'] - 1) // processBlock['content']['pagination']['itemsPerPage']
+                progressDialog = xbmcgui.DialogProgress()
+                progressDialog.create("RTL+", "Programok letöltése folyamatban")
+                for page in range(defaultNumberOfPages+1, nbPages + 1, defaultNumberOfPages):
+                    currItems = min((page + defaultNumberOfPages - 1) * processBlock['content']['pagination']['itemsPerPage'], processBlock['content']['pagination']['totalItems'])
+                    progressDialog.update(int(round(float(page)/nbPages*100)), 'Programok letöltése folyamatban (' + str(currItems) + '/' + str(processBlock['content']['pagination']['totalItems']) + ')')
+                    pageData = json.loads(net.request(api_block_url % (ptype, pid, processBlock['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                    try:
+                        items += pageData['content']['items']
+                    except:
+                        pass
+                    if progressDialog.iscanceled():
+                        break
+                progressDialog.close()
+            return items
+        allTags = []
+        allItems = []
+        processBlock = None
+        if not blockid:
+            allTags, processBlock = cache.get(getPrograms, self.cacheTime, ptype, pid)
             if len(allTags) > 1:
                 for tag in allTags:
-                    self.addDirectoryItem(py2_encode(tag['title']), 'programs&type=%s&id=%s&blockid=%s' % (ptype, pid, tag['id']), '', 'DefaultTVShows.png') 
+                    self.addDirectoryItem(py2_encode(tag['title']), 'programs&type=%s&id=%s&blockid=%s' % (ptype, pid, tag['id']), '', 'DefaultTVShows.png')
                 self.endDirectory(type='tvshows')
                 return
         else:
-            processBlock = json.loads(net.request(api_block_url % (ptype, pid, blockid, defaultNumberOfPages, 1), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-        allItems = processBlock['content']['items']
-        if processBlock['content']['pagination']['nextPage']:
-            progressDialog = None
-            nbPages = (processBlock['content']['pagination']['totalItems'] + processBlock['content']['pagination']['itemsPerPage'] - 1) // processBlock['content']['pagination']['itemsPerPage']
-            progressDialog = xbmcgui.DialogProgress()
-            progressDialog.create("RTL+", "Programok letöltése folyamatban")
-            for page in range(defaultNumberOfPages+1, nbPages + 1, defaultNumberOfPages):
-                currItems = min((page + defaultNumberOfPages - 1) * processBlock['content']['pagination']['itemsPerPage'], processBlock['content']['pagination']['totalItems'])
-                progressDialog.update(int(round(float(page)/nbPages*100)), 'Programok letöltése folyamatban (' + str(currItems) + '/' + str(processBlock['content']['pagination']['totalItems']) + ')')
-                pageData = json.loads(net.request(api_block_url % (ptype, pid, processBlock['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-                try:
-                    allItems += pageData['content']['items']
-                except:
-                    pass
-                if progressDialog.iscanceled():
-                    break
-            progressDialog.close()
+            processBlock = cache.get(getProgramsByBlockId, self.cacheTime, ptype, pid, blockid)
+        allItems = cache.get(loadAllItems, self.cacheTime, processBlock, ptype, pid)
         self.showPrograms(allItems)
 
     def episodes(self, ptype, pid, fanart, subcat=None):
@@ -219,7 +231,39 @@ class navigator:
                     return block
             return None
 
-        content = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        def getContent(ptype, pid):
+            return json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+
+        def getEpisodes(content, currentBlock, hidePlus):
+            episodes = currentBlock['content']['items']
+            if currentBlock['content']['pagination']['nextPage']:
+                nbPages = (currentBlock['content']['pagination']['totalItems'] + currentBlock['content']['pagination']['itemsPerPage'] - 1) // currentBlock['content']['pagination']['itemsPerPage']
+                progressDialog = xbmcgui.DialogProgress()
+                progressDialog.create("RTL+", "Epizódlista letöltése folyamatban")
+                for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
+                    currItems = min((page + defaultNumberOfPages - 1) * currentBlock['content']['pagination']['itemsPerPage'], currentBlock['content']['pagination']['totalItems'])
+                    progressDialog.update(int(round(float(page)/nbPages*100)), 'Epizódlista letöltése folyamatban (' + str(currItems) + '/' + str(currentBlock['content']['pagination']['totalItems']) + ')')
+                    subcontent = json.loads(net.request(api_block_url % (content['entity']['type'], content['entity']['id'], currentBlock['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                    try:
+                        episodes += subcontent['content']['items']
+                    except:
+                        pass
+                    if progressDialog and progressDialog.iscanceled():
+                        break
+                progressDialog.close()
+
+            sortedEpisodes = episodes
+            if (addon().getSetting('sort_episodes') == 'true'):
+                reverseSorting = False
+                if (addon().getSetting('sort_reverse') == 'true'):
+                    reverseSorting = True
+                if title_sorter.all_match_same_pattern(episodes):
+                    sortedEpisodes = title_sorter.sorted(episodes, reverse=reverseSorting)
+                else:
+                    sortedEpisodes = sorted(episodes, key=getClipID, reverse=reverseSorting)
+            return sortedEpisodes
+
+        content = cache.get(getContent, self.cacheTime, ptype, pid)
         subcats = []
         if subcat == None:
             for block in content['blocks']:
@@ -249,34 +293,9 @@ class navigator:
         if currentBlock == None:
             return
 
-        episodes = currentBlock['content']['items']
-        if currentBlock['content']['pagination']['nextPage']:
-            nbPages = (currentBlock['content']['pagination']['totalItems'] + currentBlock['content']['pagination']['itemsPerPage'] - 1) // currentBlock['content']['pagination']['itemsPerPage']
-            progressDialog = xbmcgui.DialogProgress()
-            progressDialog.create("RTL+", "Epizódlista letöltése folyamatban")
-            for page in range(defaultNumberOfPages + 1, nbPages + 1, defaultNumberOfPages):
-                currItems = min((page + defaultNumberOfPages - 1) * currentBlock['content']['pagination']['itemsPerPage'], currentBlock['content']['pagination']['totalItems'])
-                progressDialog.update(int(round(float(page)/nbPages*100)), 'Epizódlista letöltése folyamatban (' + str(currItems) + '/' + str(currentBlock['content']['pagination']['totalItems']) + ')')
-                subcontent = json.loads(net.request(api_block_url % (content['entity']['type'], content['entity']['id'], currentBlock['id'], defaultNumberOfPages, page), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
-                try:
-                    episodes += subcontent['content']['items']
-                except:
-                    pass
-                if progressDialog and progressDialog.iscanceled():
-                    break
-            progressDialog.close()
         hidePlus = addon().getSetting('hide_plus') == 'true'
 
-        sortedEpisodes = episodes
-        if (addon().getSetting('sort_episodes') == 'true'):
-            reverseSorting = False
-            if (addon().getSetting('sort_reverse') == 'true'):
-                reverseSorting = True
-            if title_sorter.all_match_same_pattern(episodes):
-                sortedEpisodes = title_sorter.sorted(episodes, reverse=reverseSorting)
-            else:
-                sortedEpisodes = sorted(episodes, key=getClipID, reverse=reverseSorting)
-
+        sortedEpisodes = cache.get(getEpisodes, self.cacheTime, content, currentBlock, hidePlus)
         hasItemsListed = False
 
         for item in sortedEpisodes:
@@ -544,3 +563,6 @@ class navigator:
         else:
             xbmcgui.Dialog().ok("RTL+", "Hiba az eszközök lekérése során! Kérlek töröld a beállításokat, vagy jelentkezz ki a kiegészítő beállításaiban!")
         return False
+
+    def clearCache(self):
+        cache.clear()
