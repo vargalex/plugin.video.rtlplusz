@@ -80,7 +80,7 @@ class navigator:
     def root(self):
         subscriptionData = json.loads(net.request(subscriptions_url % addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
         if len(subscriptionData['current']) > 0:
-            subscriptionName = subscriptionData['current'][0]['offer']['title']
+            subscriptionName = ", ".join(offer["offer"]["title"] for offer in subscriptionData["current"])
         else:
             subscriptionName = "RTL+ Light"
         if subscriptionName != addon().getSetting("subscriptionname"):
@@ -267,12 +267,14 @@ class navigator:
         subcats = []
         if subcat == None:
             for block in content['blocks']:
-                if block['featureId'] in ['videos_by_tags', 'channels_by_platform', 'lives_by_services']:
-                    subcats = []
-                    subcat = block['id'].split('--')[1]
-                    break
-                if block['featureId'] in ['videos_by_program', 'videos_by_subcat_by_program', 'videos_by_season_by_program', 'folders_by_service']:
+                #if block['featureId'] in ['videos_by_program', 'videos_by_subcat_by_program', 'videos_by_season_by_program', 'folders_by_service', 'videos_by_tags']:
+                if block['templateId'] in ['CardListM', 'PosterListM']:
                     subcats.append({'title': block['title']['long'], 'subcat': block['id'].split('--')[1]})
+                else:
+                    if block['featureId'] in ['channels_by_platform', 'lives_by_services']:
+                        subcats = []
+                        subcat = block['id'].split('--')[1]
+                        break
 
         if len(subcats) == 0:
             for block in content['blocks']:
@@ -280,7 +282,9 @@ class navigator:
                     subcats.append({'title': '', 'subcat': block['id'].split('--')[1]})
 
         if len(subcats) > 1:
-            for s in subcats:
+            sortedSubcats = subcats
+            #sortedSubcats = sorted(subcats, key=lambda x: locale.strxfrm(x['title']))
+            for s in sortedSubcats:
                 self.addDirectoryItem(py2_encode(s['title']), 'episodes&type=%s&id=%s&fanart=%s&subcat=%s' % (ptype, pid, fanart, s['subcat']), '', 'DefaultFolder.png', Fanart=fanart)
             self.endDirectory(type='seasons')
             return
