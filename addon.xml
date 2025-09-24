@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.rtlplusz" name="RTL+" version="1.0.20" provider-name="vargalex">
+<addon id="plugin.video.rtlplusz" name="RTL+" version="1.0.21" provider-name="vargalex">
 	<requires>
 		<import addon="script.module.inputstreamhelper" version="0.4.3"/>
 	</requires>
@@ -12,8 +12,8 @@
 		<language>hu</language>
 		<platform>all</platform>
 		<news>
-			- Cache-elés megvalósítása (default 4 óra, beállításokban módosítható)
-			- Évad feldolgozás javítása
+			- login javítása
+			- új API endpoint használata
 		</news>
 		<assets>
 		  <icon>icon.png</icon>

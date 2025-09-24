@@ -44,7 +44,7 @@ package_change_needed = 'A hozzáféréshez nagyobb csomagra váltás szüksége
 account_overview_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/app/account_overview/layout?nbPages=2'
 devices_management_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/frontspace/devicesmanagementcenter/layout?nbPages=2'
 profile_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/%s/profiles'
-api_base = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/%s/%s/'
+api_base = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-20/%s/%s/'
 defaultNumberOfPages = 2
 api_url = api_base + 'layout?nbPages=%d' % defaultNumberOfPages
 api_block_url = api_base + 'block/%s?nbPages=%d&page=%d'
@@ -140,17 +140,8 @@ class navigator:
             currentBlock = None
             data = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
             for block in data['blocks']:
-                if (block['title'] and block['featureId'] == 'programs_by_tags' and 'Legújabb részek' not in py2_encode(block['title']['long']) and 'Ismeretterjesztő' not in py2_encode(block['title']['long'])) or (block['title'] and block['featureId'] == 'programs_by_folder_by_service' and block['title'] and block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long']) or (block['title'] and block['featureId'] == 'lives_by_services') or (block['title'] and block['featureId'] == 'videos_by_subcat_by_program'):
-                #if (block['featureId'] == 'programs_by_tags' and 'Legújabb részek' not in py2_encode(block['title']['long']) and 'Ismeretterjesztő' not in py2_encode(block['title']['long'])) or (block['featureId'] == 'programs_by_folder_by_service' and block['title'] and block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long']) or (block['featureId'] == 'lives_by_services') or (block['featureId'] == 'videos_by_subcat_by_program'):
-                    tags.append({'id': block['id'], 'title': block['title']['long']})
-                if (block['featureId'] == 'programs_by_folder_by_service') and (not block['title'] or (block['title'] and not block['title']['long'].strip() and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long'])):
-                    tags.append({'id': block['id'], 'title': 'Összes'})
-                if (block['featureId'] == 'videos_by_program'):
-                    tags.append({'id': block['id'], 'title': block['title']['long'] if block['title'] and block['title']['long'] and block['title']['long'].strip() != "" else 'Egyéb'})
-                if block['featureId'] == 'folders_by_service' and block['templateId'] == 'FlatRectangleList' and block['id'] != data['blocks'][-1]['id']:
-                    tags.append({'id': block['id'], 'title': 'Kategóriák'})
-                if (processBlock == None) and (block['featureId'] == 'programs_by_folder_by_service') and (not block['title'] or (block['title'] and block['title']['long'] and 'TOP' not in block['title']['long'] and 'On The Spot aj' not in block['title']['long'])):
-                    currentBlock = block
+                if block['type'] in ['bffPaginated'] and block['content']['contentTemplateId'] in ['CardM', 'PosterM', 'Jacket'] and block['content']['title']:
+                    tags.append({'id': block['id'], 'title': block['content']['title']['long']})
             return tags, currentBlock
 
         def getProgramsByBlockId(ptype, pid, blockid):
@@ -267,20 +258,18 @@ class navigator:
         subcats = []
         if subcat == None:
             for block in content['blocks']:
-                #if block['featureId'] in ['videos_by_program', 'videos_by_subcat_by_program', 'videos_by_season_by_program', 'folders_by_service', 'videos_by_tags']:
-                if block['templateId'] in ['CardListM', 'PosterListM']:
-                    subcats.append({'title': block['title']['long'], 'subcat': block['id'].split('--')[1]})
+                if block['type'] in ['bffPaginated'] and block['content']['contentTemplateId'] in ['CardM', 'PosterM']:
+                    subcats.append({'title': block['content']['title']['long'], 'subcat': block['id'].split('--')[1]})
                 else:
-                    if block['featureId'] in ['channels_by_platform', 'lives_by_services']:
+                    if 'featureId' in block and block['featureId'] in ['channels_by_platform', 'lives_by_services']:
                         subcats = []
                         subcat = block['id'].split('--')[1]
                         break
-
-        if len(subcats) == 0:
+        """if len(subcats) == 0:
             for block in content['blocks']:
                 if block['featureId'] in ['info_by_program']:
                     subcats.append({'title': '', 'subcat': block['id'].split('--')[1]})
-
+        """
         if len(subcats) > 1:
             sortedSubcats = subcats
             #sortedSubcats = sorted(subcats, key=lambda x: locale.strxfrm(x['title']))
@@ -302,34 +291,35 @@ class navigator:
         sortedEpisodes = cache.get(getEpisodes, self.cacheTime, content, currentBlock, hidePlus)
         hasItemsListed = False
 
-        for item in sortedEpisodes:
-            try:
-                eligible = item['itemContent']['action']['target']['value_layout']['id'] != 'offers'
-                if (not hidePlus) or eligible:
-                    title = py2_encode(item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else item['itemContent']['analytics']['googleAnalytics']['eventLabel'] if item['itemContent']['analytics'] != None and item['itemContent']['analytics']['googleAnalytics'] != None and item['itemContent']['analytics']['googleAnalytics']['eventLabel'] != None else item['itemContent']['image']['caption'] if item['itemContent']['image'] != None and item['itemContent']['image']['caption'] != None else content['entity']['metadata']['title'])
-                    if not eligible:
-                        title = '[COLOR red]' + title + '[/COLOR]'
-                    plot = py2_encode(item['itemContent']['description'])
-                    match = re.match(r'^([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None
-                    if match:
-                        duration = str(int(match.group(1))*60 + int(match.group(2)))
-                    else:
-                        match = re.match(r'^([0-9]*):([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None
+        if sortedEpisodes:
+            for item in sortedEpisodes:
+                try:
+                    eligible = item['itemContent']['action']['target']['value_layout']['id'] != 'offers'
+                    if (not hidePlus) or eligible:
+                        title = py2_encode(item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else item['itemContent']['analytics']['googleAnalytics']['eventLabel'] if item['itemContent']['analytics'] != None and item['itemContent']['analytics']['googleAnalytics'] != None and item['itemContent']['analytics']['googleAnalytics']['eventLabel'] != None else item['itemContent']['image']['caption'] if item['itemContent']['image'] != None and item['itemContent']['image']['caption'] != None else content['entity']['metadata']['title'])
+                        if not eligible:
+                            title = '[COLOR red]' + title + '[/COLOR]'
+                        plot = py2_encode(item['itemContent']['description'])
+                        match = re.match(r'^([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None
                         if match:
-                            duration = str(int(match.group(1))*60*60 + int(match.group(2))*60 + int(match.group(3)))
+                            duration = str(int(match.group(1))*60 + int(match.group(2)))
                         else:
-                            duration = '0'
-                    thumb = img_link % item['itemContent']['image']['id']
-                    clip_id = py2_encode(item['itemContent']['action']['target']['value_layout']['id'])
-                    clip_type = py2_encode(item['itemContent']['action']['target']['value_layout']['type'])
-                    meta = {'title': title, 'plot': plot, 'duration': duration}
-                    if clip_type == 'folder':
-                        self.addDirectoryItem(title, 'episodes&type=%s&id=%s&fanart=%s' % (quote_plus(clip_type), quote_plus(clip_id), fanart), thumb, 'DefaultFolder.png', Fanart=fanart)
-                    else:
-                        self.addDirectoryItem(title, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(clip_type), quote_plus(clip_id), quote_plus(json.dumps(meta)), thumb), thumb, 'DefaultTVShows.png', meta=meta, isFolder=False, Fanart=fanart)
-                    hasItemsListed = True
-            except:
-                pass
+                            match = re.match(r'^([0-9]*):([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None
+                            if match:
+                                duration = str(int(match.group(1))*60*60 + int(match.group(2))*60 + int(match.group(3)))
+                            else:
+                                duration = '0'
+                        thumb = img_link % item['itemContent']['image']['id']
+                        clip_id = py2_encode(item['itemContent']['action']['target']['value_layout']['id'])
+                        clip_type = py2_encode(item['itemContent']['action']['target']['value_layout']['type'])
+                        meta = {'title': title, 'plot': plot, 'duration': duration}
+                        if clip_type == 'folder':
+                            self.addDirectoryItem(title, 'episodes&type=%s&id=%s&fanart=%s' % (quote_plus(clip_type), quote_plus(clip_id), fanart), thumb, 'DefaultFolder.png', Fanart=fanart)
+                        else:
+                            self.addDirectoryItem(title, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(clip_type), quote_plus(clip_id), quote_plus(json.dumps(meta)), thumb), thumb, 'DefaultTVShows.png', meta=meta, isFolder=False, Fanart=fanart)
+                        hasItemsListed = True
+                except:
+                    pass
 
         self.endDirectory(type='episodes')
 
@@ -371,40 +361,43 @@ class navigator:
         plusz_baseUrl = 'https://www.rtlplusz.hu'
 
         plusz_source = net.request(plusz_baseUrl)
-        main_js = re.search(r'''<script .* src=['"](\/main-.+?)['"]''', plusz_source).group(1)
-        api_src = net.request(urlparse.urljoin(plusz_baseUrl, main_js))
-        api_src = re.findall(r',([^}]+login.rtlmost.hu[^}]+})', api_src)
+        scripts = re.findall(r'<script.*src="([^"]*)".*type="module"', plusz_source)
         api_cdn = None
         api_key = None
-        if api_src:
-            api_src = json.loads(re.sub(r'([{,:])(\w+)([},:])','\\1\"\\2\"\\3', "{%s" % api_src[0]))
-            api_cdn = api_src['cdn']
-            api_key = api_src['key']
-            xbmc.log('RTL+: API data found in main javascript', xbmc.LOGINFO)
-        else:
-            xbmc.log('RTL+: API data not found in main javascript trying in client javascript', xbmc.LOGINFO)
-            client_js = re.search(r'''<script .* src=['"](\/client-.+?)['"]''', plusz_source).group(1)
-            client_js_source = net.request(urlparse.urljoin(plusz_baseUrl, client_js))
-            gigya_start = client_js_source.find('"gigya":{')
-            if gigya_start > 0:
-                bracketCnt = 1
-                max_possible_length = 5000
-                pos = gigya_start + len('"gigya":{')
-                while bracketCnt > 0 and pos < len(client_js_source) and pos < gigya_start + max_possible_length:
-                    if client_js_source[pos] == '{':
-                        bracketCnt += 1
-                    if client_js_source[pos] == '}':
-                        bracketCnt -= 1
-                    pos += 1
-                if bracketCnt == 0:
-                    data = json.loads("{%s}" % client_js_source[gigya_start:pos])
-                    xbmc.log('RTL+: API data found in client js', xbmc.LOGINFO)
-                    api_cdn = data['gigya']['cdn']
-                    api_key = data['gigya']['key']
-                else:
-                    xbmc.log('RTL+: Error on finding gigya JSON end in client javascript!')
+        for script in scripts:
+            js_source = net.request(urlparse.urljoin(plusz_baseUrl, script))
+            api_src = re.findall(r',([^}]+login.rtlmost.hu[^}]+})', js_source)
+            if api_src:
+                api_src = json.loads(re.sub(r'([{,:])(\w+)([},:])','\\1\"\\2\"\\3', "{%s" % api_src[0]))
+                api_cdn = api_src['cdn']
+                api_key = api_src['key']
+                xbmc.log('RTL+: API data found in %s javascript' % script, xbmc.LOGINFO)
+                break
             else:
-                xbmc.log('RTL+: gigya JSON data not found in client javascript!', xbmc.LOGERROR)
+                xbmc.log('RTL+: API data not found in %s javascripts trying to found gigya data' % script, xbmc.LOGINFO)
+                js_source = net.request(urlparse.urljoin(plusz_baseUrl, script))
+                gigya_start = js_source.find('"gigya":{')
+                if gigya_start > 0:
+                    bracketCnt = 1
+                    max_possible_length = 5000
+                    pos = gigya_start + len('"gigya":{')
+                    while bracketCnt > 0 and pos < len(js_source) and pos < gigya_start + max_possible_length:
+                        if js_source[pos] == '{':
+                            bracketCnt += 1
+                        if js_source[pos] == '}':
+                            bracketCnt -= 1
+                        pos += 1
+                    if bracketCnt == 0:
+                        data = json.loads("{%s}" % js_source[gigya_start:pos])
+                        xbmc.log('RTL+: API data found in client js', xbmc.LOGINFO)
+                        api_cdn = data['gigya']['cdn']
+                        api_key = data['gigya']['key']
+                        xbmc.log('RTL+: gigya API data found in %s javascript' % script, xbmc.LOGINFO)
+                        break
+                    else:
+                        xbmc.log('RTL+: Error on finding gigya JSON end in %s javascript!' % script)
+                else:
+                    xbmc.log('RTL+: gigya JSON data not found in %s javascript!' % script, xbmc.LOGERROR)
         if api_cdn and api_key:
             r = net.request(login_url % api_cdn, post={'loginID': self.username, 'password': self.password, 'APIKey': api_key})
             jsonparse = json.loads(r)
