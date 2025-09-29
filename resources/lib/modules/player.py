@@ -31,19 +31,24 @@ else:
     buildVersionStr = "System.BuildVersion"
 
 token_url = 'https://drm.6cloud.fr/v1/customers/rtlhu/platforms/m6group_web/services/rtlhu_rtl_klub/users/%s/%s/%s/upfront-token'
+notify_url = 'https://heartbeat-v2.6cloud.fr/v2/platforms/m6group_web/notify'
+session_url = '%s/session' % notify_url
+view_url = '%s/view' % notify_url
 
 class player:
     def __init__(self):
         self.uid = xbmcaddon.Addon().getSetting('userid')
+        self.tracking = xbmcaddon.Addon().getSetting('tracking') == 'true'
+        self.trackingwrite = xbmcaddon.Addon().getSetting('trackingwrite') == 'true'
 
 
-    def play(self, ptype, id, streams, image, meta):
+    def play(self, ptype, id, streams, image, meta, duration, resume, heartbeat):
         def sort_by_resolution_pattern(x):
             patterns = ['_1080p_', '_720p_', '_hd_', '_540p_', '_sd_']
             pattern = '|'.join('(%s)' %x for x in patterns)
             match = re.search(pattern, x)
             return match.lastindex if match != None else len(patterns)+1
-
+        
         #dash_url = [i for i in streams if 'drmnp.ism/Manifest.mpd' in i]
         dash_url = sorted([i for i in streams if 'mpd' in i and 'live' not in i], key=sort_by_resolution_pattern)
         hls_url = sorted([i for i in streams if 'm3u8' in i and 'live' not in i])
@@ -159,7 +164,33 @@ class player:
         meta = json.loads(meta)
         li.setArt({'icon': image, 'thumb': image, 'poster': image, 'tvshow.poster': image})
         li.setInfo(type='Video', infoLabels = meta)
+        if self.tracking:
+            if resume:
+                li.getVideoInfoTag().setResumePoint(resume, duration)
+            sessionData = json.loads(net.request(session_url, post=json.dumps(heartbeat["session"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
         xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
+        if self.tracking and self.trackingwrite:
+            player = xbmc.Player()
+            current_sec = 0
+            total_sec = 0
+            for i in range(0, 240):
+                if player.isPlaying():
+                    break
+                xbmc.Monitor().waitForAbort(1)
+            while not xbmc.Monitor().abortRequested() and player.isPlaying():
+                try:
+                    current_sec = player.getTime()
+                    total_sec = player.getTotalTime()
+                except:
+                    pass
+                xbmc.Monitor().waitForAbort(1)
+            if "sessionId" in sessionData:
+                heartbeat["view"]["platformCode"] = heartbeat["session"]["platformCode"]
+                heartbeat["view"]["tc"] = current_sec
+                heartbeat["view"]["sessionId"] = sessionData["sessionId"]
+                heartbeat["view"]["sequenceNumber"] = 1
+                heartbeat["view"]["tcRelative"] = 0
+                viewData = json.loads(net.request(view_url, post=json.dumps(heartbeat["view"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
 
     def getJwtToken(self):
         getJwt_url = 'https://front-auth.6cloud.fr/v2/platforms/m6group_web/getJwt'

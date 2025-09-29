@@ -29,4 +29,9 @@
     <category label="InputStream">
         <setting id="drmsettings" type="action" label="InputStream Adaptive beállítások" option="close" action="RunPlugin(plugin://plugin.video.rtlplusz/?action=drmSettings)"></setting>
     </category>
+    <category label="Követés">
+        <setting label="Pozíciók követése az RTL+ alapján" type="bool" id="tracking" default="true" />
+        <setting label="Pontos pozíciók előolvasása" type="bool" id="trackingpreload" default="false" visible="eq(-1,true)"/>
+        <setting label="Leállításkor/végigjátszáskor a pozíció visszaírása az RTL+-ba" type="bool" id="trackingwrite" default="true" visible="eq(-2,true)" />
+    </category>
 </settings>

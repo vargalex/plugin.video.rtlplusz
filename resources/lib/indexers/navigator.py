@@ -41,8 +41,8 @@ addonFanart = addon().getAddonInfo('fanart')
 
 img_link = 'https://images-fio.6play.fr/v2/images/%s/raw'
 package_change_needed = 'A hozzáféréshez nagyobb csomagra váltás szükséges.\nRészletek: https://rtl.hu/rtlplusz/szolgaltatasok'
-account_overview_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/app/account_overview/layout?nbPages=2'
-devices_management_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/frontspace/devicesmanagementcenter/layout?nbPages=2'
+account_overview_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-20/app/account_overview/layout?nbPages=2'
+devices_management_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-20/frontspace/devicesmanagementcenter/layout?nbPages=2'
 profile_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/%s/profiles'
 api_base = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-20/%s/%s/'
 defaultNumberOfPages = 2
@@ -53,7 +53,7 @@ search_api_key = '5fce02cb376fb2cda773be8a8404598a'
 search_application_id = 'NHACVIVXXK'
 delete_device_url = 'https://6play-users.6play.fr/v3/rtlhu/m6group_web/devices/toRevoke'
 subscriptions_url = 'https://stores.6cloud.fr/premium/v4/customers/rtlhu/platforms/m6group_web/users/%s/subscriptions'
-desktop_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-4/navigation/desktop'
+desktop_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-20/navigation/desktop'
 revoke_current_device_url = 'https://6play-users.6play.fr/v3/rtlhu/m6group_web/devices/revokeCurrentDevice'
 
 class navigator:
@@ -76,6 +76,8 @@ class navigator:
         self.base_path = py2_decode(translatePath(addon().getAddonInfo('profile')))
         self.searchFileName = os.path.join(self.base_path, "search.history")
         self.cacheTime = addon().getSettingInt('cachetime')
+        self.tracking = addon().getSetting('tracking') == 'true'
+        self.trackingpreload = addon().getSetting('trackingpreload') == 'true'
 
     def root(self):
         subscriptionData = json.loads(net.request(subscriptions_url % addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
@@ -102,37 +104,44 @@ class navigator:
                                     categories.append({'caption': entry['image']['caption'], 'id': entry['target']['value_layout']['id']})
         for category in categories:
             self.addDirectoryItem(py2_encode(category['caption']), 'programs&type=folder&id=%s' % category['id'], '', 'DefaultTVShows.png')
+        self.addDirectoryItem(py2_encode("Főoldal"), 'programs&type=alias&id=home', '', 'DefaultTVShows.png')
         self.endDirectory()
 
     def showPrograms(self, allItems):
         prgs={}
-        for program in allItems:
-            prg = {}
-            id = program['itemContent']['id']
-            title = py2_encode(program['itemContent']['title'] if program['itemContent']['title'] else program['itemContent']['extraTitle'] if program['itemContent']['extraTitle'] else program['itemContent']['image']['caption'])
-            try: thumb = img_link % program['itemContent']['image']['id']
-            except: thumb = ''
-            try: fanart = img_link % program['itemContent']['secondaryImage']['id']
-            except: fanart = None
-            prgType = program['itemContent']['action']['target']['value_layout']['type']
-            prgId = program['itemContent']['action']['target']['value_layout']['id']
-            plot = py2_encode(program['itemContent']['description'])
-            extraInfo = ""
-            if program['itemContent']['highlight']:
-                extraInfo = ' [I][COLOR silver](%s)[/COLOR][/I]' % py2_encode(program['itemContent']['highlight'])
-            prg = {'title': title, 'type': prgType, 'id': prgId, 'extrainfo': extraInfo, 'fanart': fanart, 'thumb': thumb, 'plot': plot}
-            prgs[id] = prg
-        prgIds = list(prgs.keys())
-        if (addon().getSetting('sort_programs') == 'true'):
-            prgIds = sorted(prgIds, key=lambda x: locale.strxfrm(prgs[x]['title']))
-        for prg in prgIds:
-            if prgs[prg]['type'] == 'program':
-                self.addDirectoryItem("%s%s" % (prgs[prg]['title'], prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
-            elif prgs[prg]['type'] == 'folder':
-                self.addDirectoryItem(prgs[prg]['title'], 'programs&type=%s&id=%s' % (prgs[prg]['type'], prgs[prg]['id']), '', 'DefaultTVShows.png')
-            else:
-                self.addDirectoryItem(prgs[prg]['title'] if prgs[prg]['id'] != 'offers' else '[COLOR red]%s[/COLOR]' % prgs[prg]['title'], 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(prgs[prg]['type']), quote_plus(prgs[prg]['id']), quote_plus(json.dumps({'title': prgs[prg]['title'], 'plot': plot, 'duration': 0})), thumb), prgs[prg]['thumb'], 'DefaultTVShows.png', meta={'plot': prgs[prg]['plot']}, isFolder=False, Fanart=prgs[prg]['fanart'])
-        self.endDirectory(type='tvshows')
+        if allItems:
+            for program in allItems:
+                prg = {}
+                id = program['itemContent']['id']
+                title = py2_encode(program['itemContent']['extraTitle'] if program['itemContent']['extraTitle'] else program['itemContent']['title'] if program['itemContent']['title'] else program['itemContent']['image']['caption'])
+                try: thumb = img_link % program['itemContent']['image']['id']
+                except: thumb = ''
+                try: fanart = img_link % program['itemContent']['secondaryImage']['id']
+                except: fanart = None
+                prgType = program['itemContent']['action']['target']['value_layout']['type']
+                prgId = program['itemContent']['action']['target']['value_layout']['id']
+                plot = py2_encode(program['itemContent']['description'])
+                extraInfo = ""
+                if program['itemContent']['highlight']:
+                    extraInfo = ' [I][COLOR silver](%s)[/COLOR][/I]' % py2_encode(program['itemContent']['highlight'])
+                prg = {'title': title, 'type': prgType, 'id': prgId, 'extrainfo': extraInfo, 'fanart': fanart, 'thumb': thumb, 'plot': plot, 'progress': program["itemContent"]["progress"]}
+                prgs[id] = prg
+            prgIds = list(prgs.keys())
+            if (addon().getSetting('sort_programs') == 'true'):
+                prgIds = sorted(prgIds, key=lambda x: locale.strxfrm(prgs[x]['title']))
+            for prg in prgIds:
+                if prgs[prg]['type'] == 'program':
+                    self.addDirectoryItem("%s%s" % (prgs[prg]['title'], prgs[prg]['extrainfo']), 'episodes&type=%s&id=%s&fanart=%s' % (prgs[prg]['type'], prgs[prg]['id'], prgs[prg]['fanart']), prgs[prg]['thumb'], 'DefaultTVShows.png', Fanart=prgs[prg]['fanart'], meta={'plot': prgs[prg]['plot']})
+                elif prgs[prg]['type'] == 'folder':
+                    self.addDirectoryItem(prgs[prg]['title'], 'programs&type=%s&id=%s' % (prgs[prg]['type'], prgs[prg]['id']), '', 'DefaultTVShows.png')
+                else:
+                    resume = None
+                    if self.tracking:
+                        if prgs[prg]['progress'] and prgs[prg]['type'] == 'video':
+                            clip = json.loads(net.request(api_url % (prgs[prg]['type'], prgs[prg]['id']), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                            resume = {"resumeTime": clip['blocks'][0]['content']['items'][0]['itemContent']['video']['progress']['tcResume'], "totalTime": clip['blocks'][0]['content']['items'][0]['itemContent']['video']['duration']}
+                    self.addDirectoryItem(prgs[prg]['title'] if prgs[prg]['id'] != 'offers' else '[COLOR red]%s[/COLOR]' % prgs[prg]['title'], 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(prgs[prg]['type']), quote_plus(prgs[prg]['id']), quote_plus(json.dumps({'title': prgs[prg]['title'], 'plot': plot, 'duration': 0})), thumb), prgs[prg]['thumb'], 'DefaultTVShows.png', meta={'plot': prgs[prg]['plot']}, isFolder=False, Fanart=prgs[prg]['fanart'], resume=resume)
+            self.endDirectory(type='tvshows')
 
     def programs(self, ptype, pid, blockid=None):
         def getPrograms(ptype, pid):
@@ -140,8 +149,9 @@ class navigator:
             currentBlock = None
             data = json.loads(net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
             for block in data['blocks']:
-                if block['type'] in ['bffPaginated'] and block['content']['contentTemplateId'] in ['CardM', 'PosterM', 'Jacket'] and block['content']['title']:
+                if block['type'] in ['bffPaginated'] and block['content']['contentTemplateId'] in ['CardM', 'PosterM', 'Jacket', 'Banner'] and block['content']['title']:
                     tags.append({'id': block['id'], 'title': block['content']['title']['long']})
+                    currentBlock = block
             return tags, currentBlock
 
         def getProgramsByBlockId(ptype, pid, blockid):
@@ -293,7 +303,7 @@ class navigator:
 
         if sortedEpisodes:
             for item in sortedEpisodes:
-                try:
+                #try:
                     eligible = item['itemContent']['action']['target']['value_layout']['id'] != 'offers'
                     if (not hidePlus) or eligible:
                         title = py2_encode(item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else item['itemContent']['analytics']['googleAnalytics']['eventLabel'] if item['itemContent']['analytics'] != None and item['itemContent']['analytics']['googleAnalytics'] != None and item['itemContent']['analytics']['googleAnalytics']['eventLabel'] != None else item['itemContent']['image']['caption'] if item['itemContent']['image'] != None and item['itemContent']['image']['caption'] != None else content['entity']['metadata']['title'])
@@ -316,11 +326,18 @@ class navigator:
                         if clip_type == 'folder':
                             self.addDirectoryItem(title, 'episodes&type=%s&id=%s&fanart=%s' % (quote_plus(clip_type), quote_plus(clip_id), fanart), thumb, 'DefaultFolder.png', Fanart=fanart)
                         else:
-                            self.addDirectoryItem(title, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(clip_type), quote_plus(clip_id), quote_plus(json.dumps(meta)), thumb), thumb, 'DefaultTVShows.png', meta=meta, isFolder=False, Fanart=fanart)
+                            resume = None
+                            if self.tracking:
+                                if item['itemContent']['progress'] and clip_type == 'video':
+                                    if self.trackingpreload:
+                                        clip = json.loads(net.request(api_url % (clip_type, clip_id), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                                        resume = {"resumeTime": clip['blocks'][0]['content']['items'][0]['itemContent']['video']['progress']['tcResume'], "totalTime": clip['blocks'][0]['content']['items'][0]['itemContent']['video']['duration']}
+                                    else:
+                                        resume = {"resumeTime": int(duration)/100*item['itemContent']['progress'], "totalTime": int(duration)}
+                            self.addDirectoryItem(title, 'play&type=%s&id=%s&meta=%s&image=%s' % (quote_plus(clip_type), quote_plus(clip_id), quote_plus(json.dumps(meta)), thumb), thumb, 'DefaultTVShows.png', meta=meta, isFolder=False, Fanart=fanart, resume=resume)
                         hasItemsListed = True
-                except:
-                    pass
-
+                #except:
+                #    pass
         self.endDirectory(type='episodes')
 
         if hidePlus and not hasItemsListed and len(sortedEpisodes) > 0:
@@ -336,7 +353,7 @@ class navigator:
             assets = None
         if assets is not None and assets != []:
             streams = [i['path'] for i in assets]
-            player.player().play(ptype, pid, streams, image, meta)
+            player.player().play(ptype, pid, streams, image, meta, clip['blocks'][0]['content']['items'][0]['itemContent']['video']['duration'], clip['blocks'][0]['content']['items'][0]['itemContent']['video']['progress']['tcResume'] if clip['blocks'][0]['content']['items'][0]['itemContent']['progress'] else None, clip['blocks'][0]['content']['items'][0]['itemContent']['analytics']['heartbeat-v2'])
         else:
             xbmcgui.Dialog().ok(u'Lej\u00E1tsz\u00E1s sikertelen.', package_change_needed)
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), False, xbmcgui.ListItem())
@@ -512,7 +529,7 @@ class navigator:
 
         return search_text
 
-    def addDirectoryItem(self, name, query, thumb, icon, context=None, queue=False, isAction=True, isFolder=True, Fanart=None, meta=None):
+    def addDirectoryItem(self, name, query, thumb, icon, context=None, queue=False, isAction=True, isFolder=True, Fanart=None, meta=None, resume=None):
         url = '%s?action=%s' % (sysaddon, query) if isAction == True else query
         if thumb == '': thumb = icon
         cm = []
@@ -523,7 +540,13 @@ class navigator:
         item.setArt({'icon': thumb, 'thumb': thumb, 'poster': thumb})
         if Fanart == None: Fanart = addonFanart
         item.setProperty('Fanart_Image', Fanart)
-        if isFolder == False: item.setProperty('IsPlayable', 'true')
+        if isFolder == False: 
+            item.setProperty('IsPlayable', 'true')
+            if resume:
+                if resume["resumeTime"] > resume["totalTime"]-10:
+                    item.setInfo('video', {'playcount': 1})
+                else:
+                    item.getVideoInfoTag().setResumePoint(resume["resumeTime"], resume["totalTime"])
         if not meta == None: item.setInfo(type='Video', infoLabels = meta)
         xbmcplugin.addDirectoryItem(handle=syshandle, url=url, listitem=item, isFolder=isFolder)
 
@@ -536,7 +559,7 @@ class navigator:
         data = json.loads(net.request(devices_management_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
         devicesBlock = None
         for block in data['blocks']:
-            if 'featureId' in block and block['featureId'] == 'devices_by_user':
+            if block['analytics']['googleAnalytics']['eventCategory'] == 'devices_by_user':
                 devicesBlock = block
                 break
         if devicesBlock:
