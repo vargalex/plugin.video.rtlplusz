@@ -164,12 +164,12 @@ class player:
         meta = json.loads(meta)
         li.setArt({'icon': image, 'thumb': image, 'poster': image, 'tvshow.poster': image})
         li.setInfo(type='Video', infoLabels = meta)
-        if self.tracking:
+        if self.tracking and (dash_url != [] or hls_url != []):
             if resume:
                 li.getVideoInfoTag().setResumePoint(resume, duration)
             sessionData = json.loads(net.request(session_url, post=json.dumps(heartbeat["session"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
         xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
-        if self.tracking and self.trackingwrite:
+        if self.tracking and self.trackingwrite and (dash_url != [] or hls_url != []):
             player = xbmc.Player()
             current_sec = 0
             total_sec = 0
