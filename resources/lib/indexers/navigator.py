@@ -78,6 +78,7 @@ class navigator:
         self.cacheTime = addon().getSettingInt('cachetime')
         self.tracking = addon().getSetting('tracking') == 'true'
         self.trackingpreload = addon().getSetting('trackingpreload') == 'true'
+        self.autoplaynext = addon().getSetting('autoplaynext') == 'true'
 
     def root(self):
         subscriptionData = json.loads(net.request(subscriptions_url % addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
@@ -359,7 +360,7 @@ class navigator:
         if assets is not None and assets != []:
             streams = [i['path'] for i in assets]
             if player.player().play(ptype, pid, streams, image, meta, clip['blocks'][0]['content']['items'][0]['itemContent']['video']['duration'], clip['blocks'][0]['content']['items'][0]['itemContent']['video']['progress']['tcResume'] if clip['blocks'][0]['content']['items'][0]['itemContent']['progress'] else None, clip['blocks'][0]['content']['items'][0]['itemContent']['analytics']['heartbeat-v2'], firstplay):
-                if self.tracking:
+                if self.autoplaynext:
                     if len(clip['blocks'][0]['content']['items'])>0:
                         item = clip['blocks'][0]['content']['items'][1]
                         clip_id = py2_encode(item['itemContent']['action']['target']['value_layout']['id'])

@@ -33,5 +33,6 @@
         <setting label="Lejátszási státusz/pozíció betöltése az RTL+-ból" type="bool" id="tracking" default="true" />
         <setting label="Pontos pozíciók előolvasása" type="bool" id="trackingpreload" default="false" visible="eq(-1,true)"/>
         <setting label="Leállításkor/befejezéskor a pozíció küldése az RTL+-hoz" type="bool" id="trackingwrite" default="true" visible="eq(-2,true)" />
+        <setting label="Következő videó automatikus lejátszása" type="bool" id="autoplaynext" default="true" />
     </category>
 </settings>

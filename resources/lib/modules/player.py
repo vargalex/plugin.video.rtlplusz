@@ -40,6 +40,7 @@ class player:
         self.uid = xbmcaddon.Addon().getSetting('userid')
         self.tracking = xbmcaddon.Addon().getSetting('tracking') == 'true'
         self.trackingwrite = xbmcaddon.Addon().getSetting('trackingwrite') == 'true'
+        self.autoplaynext = xbmcaddon.Addon().getSetting('autoplaynext') == 'true'
 
 
     def play(self, ptype, id, streams, image, meta, duration, resume, heartbeat, firstplay=True):
@@ -169,13 +170,14 @@ class player:
         if self.tracking and (dash_url != [] or hls_url != []):
             if resume:
                 li.getVideoInfoTag().setResumePoint(resume, duration)
-            sessionData = json.loads(net.request(session_url, post=json.dumps(heartbeat["session"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
+            if self.trackingwrite:
+                sessionData = json.loads(net.request(session_url, post=json.dumps(heartbeat["session"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
         player = xbmc.Player()
         if firstplay:
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
         else:
             player.play(stream_url, li)
-        if self.tracking and self.trackingwrite and (dash_url != [] or hls_url != []):
+        if ((self.tracking and self.trackingwrite) or self.autoplaynext) and (dash_url != [] or hls_url != []):
             current_sec = 0
             total_sec = 0
             for i in range(0, 240):
@@ -191,7 +193,7 @@ class player:
                 xbmc.Monitor().waitForAbort(1)
             if current_sec >= total_sec - 5:
                 current_sec = total_sec
-            if "sessionId" in sessionData:
+            if self.tracking and self.trackingwrite and "sessionId" in sessionData:
                 heartbeat["view"]["platformCode"] = heartbeat["session"]["platformCode"]
                 heartbeat["view"]["tc"] = current_sec
                 heartbeat["view"]["sessionId"] = sessionData["sessionId"]
