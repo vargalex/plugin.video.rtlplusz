@@ -114,6 +114,8 @@ class navigator:
                 prg = {}
                 id = program['itemContent']['id']
                 title = py2_encode(program['itemContent']['extraTitle'] if program['itemContent']['extraTitle'] else program['itemContent']['title'] if program['itemContent']['title'] else program['itemContent']['image']['caption'])
+                if program['itemContent']['title'] and program['itemContent']['title'].lower() not in title.lower():
+                    title = "%s [I][LIGHT](%s)[/LIGHT][/I]" % (title, program['itemContent']['title'])
                 try: thumb = img_link % program['itemContent']['image']['id']
                 except: thumb = ''
                 try: fanart = img_link % program['itemContent']['secondaryImage']['id']
@@ -299,6 +301,7 @@ class navigator:
         hidePlus = addon().getSetting('hide_plus') == 'true'
 
         sortedEpisodes = cache.get(getEpisodes, self.cacheTime, content, currentBlock, hidePlus)
+
         hasItemsListed = False
 
         if sortedEpisodes:
@@ -306,7 +309,9 @@ class navigator:
                 #try:
                     eligible = item['itemContent']['action']['target']['value_layout']['id'] != 'offers'
                     if (not hidePlus) or eligible:
-                        title = py2_encode(item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else item['itemContent']['analytics']['googleAnalytics']['eventLabel'] if item['itemContent']['analytics'] != None and item['itemContent']['analytics']['googleAnalytics'] != None and item['itemContent']['analytics']['googleAnalytics']['eventLabel'] != None else item['itemContent']['image']['caption'] if item['itemContent']['image'] != None and item['itemContent']['image']['caption'] != None else content['entity']['metadata']['title'])
+                        title = py2_encode("%s" % item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else item['itemContent']['analytics']['googleAnalytics']['eventLabel'] if item['itemContent']['analytics'] != None and item['itemContent']['analytics']['googleAnalytics'] != None and item['itemContent']['analytics']['googleAnalytics']['eventLabel'] != None else item['itemContent']['image']['caption'] if item['itemContent']['image'] != None and item['itemContent']['image']['caption'] != None else content['entity']['metadata']['title'])
+                        if item['itemContent']['title'] and item['itemContent']['title'].lower() not in title.lower():
+                            title = "%s [I][LIGHT](%s)[/LIGHT][/I]" % item['itemContent']['title']
                         if not eligible:
                             title = '[COLOR red]' + title + '[/COLOR]'
                         plot = py2_encode(item['itemContent']['description'])
@@ -344,16 +349,50 @@ class navigator:
             xbmcgui.Dialog().ok('RTL+', package_change_needed)
             xbmc.executebuiltin("XBMC.Action(Back)")
 
-    def get_video(self, ptype, pid, meta, image):
+    def get_video(self, ptype, pid, meta, image, firstplay=True):
         clip = net.request(api_url % (ptype, pid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()})
         clip = json.loads(clip)
-        try:
+        try:    
             assets = clip['blocks'][0]['content']['items'][0]['itemContent']['video']['assets']
         except:
             assets = None
         if assets is not None and assets != []:
             streams = [i['path'] for i in assets]
-            player.player().play(ptype, pid, streams, image, meta, clip['blocks'][0]['content']['items'][0]['itemContent']['video']['duration'], clip['blocks'][0]['content']['items'][0]['itemContent']['video']['progress']['tcResume'] if clip['blocks'][0]['content']['items'][0]['itemContent']['progress'] else None, clip['blocks'][0]['content']['items'][0]['itemContent']['analytics']['heartbeat-v2'])
+            if player.player().play(ptype, pid, streams, image, meta, clip['blocks'][0]['content']['items'][0]['itemContent']['video']['duration'], clip['blocks'][0]['content']['items'][0]['itemContent']['video']['progress']['tcResume'] if clip['blocks'][0]['content']['items'][0]['itemContent']['progress'] else None, clip['blocks'][0]['content']['items'][0]['itemContent']['analytics']['heartbeat-v2'], firstplay):
+                if self.tracking:
+                    if len(clip['blocks'][0]['content']['items'])>0:
+                        item = clip['blocks'][0]['content']['items'][1]
+                        clip_id = py2_encode(item['itemContent']['action']['target']['value_layout']['id'])
+                        clip_type = py2_encode(item['itemContent']['action']['target']['value_layout']['type'])
+                        if clip_type == 'video':
+                            title = py2_encode("%s" % item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else item['itemContent']['analytics']['googleAnalytics']['eventLabel'] if item['itemContent']['analytics'] != None and item['itemContent']['analytics']['googleAnalytics'] != None and item['itemContent']['analytics']['googleAnalytics']['eventLabel'] != None else item['itemContent']['image']['caption'] if item['itemContent']['image'] != None and item['itemContent']['image']['caption'] != None else content['entity']['metadata']['title'])
+                            if item['itemContent']['title'] and item['itemContent']['title'].lower() not in title.lower():
+                                title = "%s (%s)" % (title, item['itemContent']['title'])
+                            thumb = img_link % item['itemContent']['image']['id']
+                            plot = py2_encode(item['itemContent']['description'])
+                            match = re.match(r'^([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None
+                            if match:
+                                duration = str(int(match.group(1))*60 + int(match.group(2)))
+                            else:
+                                match = re.match(r'^([0-9]*):([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None
+                                if match:
+                                    duration = str(int(match.group(1))*60*60 + int(match.group(2))*60 + int(match.group(3)))
+                                else:
+                                    duration = '0'
+                            meta = {'title': title, 'plot': plot, 'duration': duration}
+                            progressDialog = xbmcgui.DialogProgress()
+                            progressDialog.create("RTL+", "Következő videó lejátszása %d másodperc múlva:\n%s" % (10, title))
+                            cancelled = False
+                            for sec in range(100, 0, -1):
+                                progressDialog.update(sec, 'Következő videó lejátszása %d másodperc múlva:\n%s' % (int(sec/10)+1, title))
+                                xbmc.sleep(100)
+                                if progressDialog.iscanceled():
+                                    cancelled = True
+                                    break
+                            progressDialog.close()
+                            if not cancelled:
+                                self.get_video(clip_type, clip_id, json.dumps(meta), thumb, False)
+                            return
         else:
             xbmcgui.Dialog().ok(u'Lej\u00E1tsz\u00E1s sikertelen.', package_change_needed)
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), False, xbmcgui.ListItem())

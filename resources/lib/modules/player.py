@@ -42,7 +42,7 @@ class player:
         self.trackingwrite = xbmcaddon.Addon().getSetting('trackingwrite') == 'true'
 
 
-    def play(self, ptype, id, streams, image, meta, duration, resume, heartbeat):
+    def play(self, ptype, id, streams, image, meta, duration, resume, heartbeat, firstplay=True):
         def sort_by_resolution_pattern(x):
             patterns = ['_1080p_', '_720p_', '_hd_', '_540p_', '_sd_']
             pattern = '|'.join('(%s)' %x for x in patterns)
@@ -54,6 +54,7 @@ class player:
         hls_url = sorted([i for i in streams if 'm3u8' in i and 'live' not in i])
         live_url = sorted([i for i in streams if 'mpd' in i and 'live' in i])
         li = None
+        stream_url = None
         if dash_url != []:
             # Inputstream and DRM
             #manifest_url = net.request(dash_url[0], redirect=False)
@@ -145,6 +146,7 @@ class player:
             from inputstreamhelper import Helper
             is_helper = Helper(PROTOCOL, drm=DRM)
             if is_helper.check_inputstream():
+                stream_url = live_url[0]
                 li = xbmcgui.ListItem(path=live_url[0])
                 if sys.version_info < (3, 0):  # if python version < 3 is safe to assume we are running on Kodi 18
                     li.setProperty('inputstreamaddon', 'inputstream.adaptive')   # compatible with Kodi 18 API
@@ -168,9 +170,12 @@ class player:
             if resume:
                 li.getVideoInfoTag().setResumePoint(resume, duration)
             sessionData = json.loads(net.request(session_url, post=json.dumps(heartbeat["session"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
-        xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
+        player = xbmc.Player()
+        if firstplay:
+            xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
+        else:
+            player.play(stream_url, li)
         if self.tracking and self.trackingwrite and (dash_url != [] or hls_url != []):
-            player = xbmc.Player()
             current_sec = 0
             total_sec = 0
             for i in range(0, 240):
@@ -184,6 +189,8 @@ class player:
                 except:
                     pass
                 xbmc.Monitor().waitForAbort(1)
+            if current_sec >= total_sec - 5:
+                current_sec = total_sec
             if "sessionId" in sessionData:
                 heartbeat["view"]["platformCode"] = heartbeat["session"]["platformCode"]
                 heartbeat["view"]["tc"] = current_sec
@@ -191,6 +198,9 @@ class player:
                 heartbeat["view"]["sequenceNumber"] = 1
                 heartbeat["view"]["tcRelative"] = 0
                 viewData = json.loads(net.request(view_url, post=json.dumps(heartbeat["view"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
+            if current_sec == total_sec:
+                return True
+        return
 
     def getJwtToken(self):
         getJwt_url = 'https://front-auth.6cloud.fr/v2/platforms/m6group_web/getJwt'

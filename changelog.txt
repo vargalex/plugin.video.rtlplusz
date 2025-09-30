@@ -1,6 +1,7 @@
 [B]1.0.22[/B]
 - Főoldal megjelenítése
 - Pozíció/nézettség betöltés/mentés támogatása az RTL+-tól/felé
+- Következő videó automatikus indítása
 [B]1.0.21[/B]
 - login javítása
 - új API endpoint használata
