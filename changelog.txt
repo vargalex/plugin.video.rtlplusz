@@ -1,3 +1,5 @@
+[B]1.0.23[/B]
+- setResumePoint kivételkezelés (csak Kodi 20+-ban létezik)
 [B]1.0.22[/B]
 - Főoldal megjelenítése
 - Pozíció/nézettség betöltés/mentés támogatása az RTL+-tól/felé

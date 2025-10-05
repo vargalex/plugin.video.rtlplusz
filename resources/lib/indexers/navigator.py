@@ -586,7 +586,10 @@ class navigator:
                 if resume["resumeTime"] > resume["totalTime"]-10:
                     item.setInfo('video', {'playcount': 1})
                 else:
-                    item.getVideoInfoTag().setResumePoint(resume["resumeTime"], resume["totalTime"])
+                    try:
+                        item.getVideoInfoTag().setResumePoint(resume["resumeTime"], resume["totalTime"])
+                    except:
+                        xbmc.log('RTL+: Error on setResumePoint call, probably we are on old Kodi version', xbmc.LOGERROR)
         if not meta == None: item.setInfo(type='Video', infoLabels = meta)
         xbmcplugin.addDirectoryItem(handle=syshandle, url=url, listitem=item, isFolder=isFolder)
 

@@ -169,7 +169,10 @@ class player:
         li.setInfo(type='Video', infoLabels = meta)
         if self.tracking and (dash_url != [] or hls_url != []):
             if resume:
-                li.getVideoInfoTag().setResumePoint(resume, duration)
+                try:
+                    li.getVideoInfoTag().setResumePoint(resume, duration)
+                except:
+                    xbmc.log('RTL+: Error on setResumePoint call, probably we are on old Kodi version', xbmc.LOGERROR)
             if self.trackingwrite:
                 sessionData = json.loads(net.request(session_url, post=json.dumps(heartbeat["session"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
         player = xbmc.Player()
