@@ -272,7 +272,18 @@ class navigator:
         if subcat == None:
             for block in content['blocks']:
                 if block['type'] in ['bffPaginated'] and block['content']['contentTemplateId'] in ['CardM', 'PosterM']:
-                    subcats.append({'title': block['content']['title']['long'], 'subcat': block['id'].split('--')[1]})
+                    title = None
+                    if block['content']['title']:
+                        if block['content']['title']['long']:
+                            title = block['content']['title']['long']
+                        else:
+                            if block['content']['title']['short']:
+                                title = block['content']['title']['short']
+                            else:
+                                title = "Általános"
+                    else:
+                        title = "Egyéb"
+                    subcats.append({'title': title, 'subcat': block['id'].split('--')[1]})
                 else:
                     if 'featureId' in block and block['featureId'] in ['channels_by_platform', 'lives_by_services']:
                         subcats = []
