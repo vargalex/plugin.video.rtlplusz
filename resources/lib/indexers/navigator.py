@@ -115,8 +115,8 @@ class navigator:
                 prg = {}
                 id = program['itemContent']['id']
                 title = py2_encode(program['itemContent']['extraTitle'] if program['itemContent']['extraTitle'] else program['itemContent']['title'] if program['itemContent']['title'] else program['itemContent']['image']['caption'])
-                if program['itemContent']['title'] and program['itemContent']['title'].lower() not in title.lower():
-                    title = "%s [I][LIGHT](%s)[/LIGHT][/I]" % (title, program['itemContent']['title'])
+                if py2_encode(program['itemContent']['title']) and py2_encode(program['itemContent']['title']).lower() not in title.lower():
+                    title = "%s [I][LIGHT](%s)[/LIGHT][/I]" % (title, py2_encode(program['itemContent']['title']))
                 try: thumb = img_link % program['itemContent']['image']['id']
                 except: thumb = ''
                 try: fanart = img_link % program['itemContent']['secondaryImage']['id']
