@@ -23,6 +23,7 @@ import os, sys, json, xbmc, xbmcaddon, xbmcgui, xbmcplugin, re, base64, time
 from resources.lib.modules import net
 from resources.lib.modules import m3u8_parser
 from resources.lib.modules.utils import py2_encode
+from resources.lib.modules.skipdialog import SkipDialog
 if sys.version_info[0] == 3:
     from urllib.parse import urlparse
     buildVersionStr = "System.BuildVersionCode"
@@ -36,20 +37,30 @@ session_url = '%s/session' % notify_url
 view_url = '%s/view' % notify_url
 
 class player:
+    DIALOG_XML = "skip_overlay.xml"
     def __init__(self):
         self.uid = xbmcaddon.Addon().getSetting('userid')
         self.tracking = xbmcaddon.Addon().getSetting('tracking') == 'true'
         self.trackingwrite = xbmcaddon.Addon().getSetting('trackingwrite') == 'true'
         self.autoplaynext = xbmcaddon.Addon().getSetting('autoplaynext') == 'true'
+        self.chapterignore = xbmcaddon.Addon().getSetting('chapterignore') == 'true'
+        self.chapterignoresec = xbmcaddon.Addon().getSettingInt('chapterignoresec')
 
 
-    def play(self, ptype, id, streams, image, meta, duration, resume, heartbeat, firstplay=True):
+    def play(self, ptype, id, streams, image, meta, duration, resume, heartbeat, firstplay=True, chapters=None):
         def sort_by_resolution_pattern(x):
             patterns = ['_1080p_', '_720p_', '_hd_', '_540p_', '_sd_']
             pattern = '|'.join('(%s)' %x for x in patterns)
             match = re.search(pattern, x)
             return match.lastindex if match != None else len(patterns)+1
         
+        chapterTypes = {"intro": "Bevezető átugrása", "opening_credits": "Főcím átugrása", "ending_credits": "Stáblista átugrása"}
+        watchChapters = []
+
+        if chapters and self.chapterignore:
+            for chapter in chapters:
+                if "type" in chapter and chapter["type"] in chapterTypes:
+                    watchChapters.append(chapter)
         #dash_url = [i for i in streams if 'drmnp.ism/Manifest.mpd' in i]
         dash_url = sorted([i for i in streams if 'mpd' in i and 'live' not in i], key=sort_by_resolution_pattern)
         hls_url = sorted([i for i in streams if 'm3u8' in i and 'live' not in i])
@@ -176,24 +187,61 @@ class player:
             if self.trackingwrite:
                 sessionData = json.loads(net.request(session_url, post=json.dumps(heartbeat["session"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
         player = xbmc.Player()
+        addon_path = str(xbmcaddon.Addon().getAddonInfo("path"))
         if firstplay:
             xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
         else:
             player.play(stream_url, li)
-        if ((self.tracking and self.trackingwrite) or self.autoplaynext) and (dash_url != [] or hls_url != []):
+        if dash_url != [] or hls_url != []:
             current_sec = 0
             total_sec = 0
             for i in range(0, 240):
                 if player.isPlaying():
                     break
                 xbmc.Monitor().waitForAbort(1)
+            dlg = None
+            handled_chapters = []
             while not xbmc.Monitor().abortRequested() and player.isPlaying():
                 try:
-                    current_sec = player.getTime()
+                    if current_sec < player.getTotalTime()-5:
+                        current_sec = player.getTime()
                     total_sec = player.getTotalTime()
                 except:
                     pass
-                xbmc.Monitor().waitForAbort(1)
+                if self.chapterignore and watchChapters != []:
+                    if dlg is None:
+                        xbmc.sleep(500)
+                    else:
+                        xbmc.sleep(100)
+                    if dlg is None:
+                        for watchChapter in watchChapters:
+                            chapterId = (watchChapter["type"], watchChapter["tcStart"], watchChapter["tcEnd"])
+                            if chapterId not in handled_chapters:
+                                if watchChapter["tcStart"] <= current_sec < watchChapter["tcEnd"] - 1:
+                                    handled_chapters.append(chapterId)
+                                    def skip(endTime):
+                                        nonlocal dlg
+                                        nonlocal current_sec
+                                        current_sec = endTime
+                                        player.seekTime(endTime)
+                                        dlg = None
+
+                                    def cancel():
+                                        nonlocal dlg
+                                        dlg = None
+                                        pass
+
+                                    dlg = SkipDialog(self.DIALOG_XML, addon_path, tcEnd=watchChapter["tcEnd"], event_name=chapterTypes[watchChapter["type"]],
+                                                    timeout=self.chapterignoresec, on_skip=skip, on_cancel=cancel)
+                                    dlg.show()
+                                    if player.isPlaying():
+                                        dlg.update(player)
+                                    break
+                        # Update a dialog állapotát
+                    elif player.isPlaying():
+                        dlg.update(player)
+                else:
+                    xbmc.Monitor().waitForAbort(1)
             if current_sec >= total_sec - 5:
                 current_sec = total_sec
             if self.tracking and self.trackingwrite and "sessionId" in sessionData:
@@ -203,7 +251,7 @@ class player:
                 heartbeat["view"]["sequenceNumber"] = 1
                 heartbeat["view"]["tcRelative"] = 0
                 viewData = json.loads(net.request(view_url, post=json.dumps(heartbeat["view"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
-            if current_sec == total_sec:
+            if current_sec >= total_sec:
                 return True
         return
 

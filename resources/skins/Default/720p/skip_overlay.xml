@@ -1,0 +1,39 @@
+<window type="overlay" id="14000">
+    <defaultcontrol always="true">1002</defaultcontrol>
+    <allowoverlay>true</allowoverlay>
+    <backgroundcolor>00FFFFFF</backgroundcolor>
+    <controls>
+        <!-- Overlay -->
+        <control type="group" id="1000">
+            <posx>760</posx>
+            <posy>540</posy>
+            <width>400</width>
+            <height>60</height>
+            <!-- Progress háttér -->
+            <control type="progress" id="1001">
+                <posx>0</posx>
+                <posy>0</posy>
+                <width>400</width>
+                <height>60</height>
+                <percent>100</percent>
+                <texturebg>progress_bg.png</texturebg>
+                <midtexture>progress_fill.png</midtexture>
+            </control>
+
+            <!-- Kattintható gomb -->
+            <control type="button" id="1002">
+                <posx>70</posx>
+                <posy>8</posy>
+                <width>260</width>
+                <height>44</height>
+                <label>Átugrás</label>
+                <align>center</align>
+                <aligny>center</aligny>
+                <texturefocus>button_focus.png</texturefocus>
+                <texturenofocus>transparent.png</texturenofocus>
+                <textcolor>CCFFFFFF</textcolor>
+                <focusedcolor>FF000000</focusedcolor>
+            </control>
+        </control>
+    </controls>
+</window>

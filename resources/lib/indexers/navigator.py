@@ -79,6 +79,7 @@ class navigator:
         self.tracking = addon().getSetting('tracking') == 'true'
         self.trackingpreload = addon().getSetting('trackingpreload') == 'true'
         self.autoplaynext = addon().getSetting('autoplaynext') == 'true'
+        self.autoplaysec = addon().getSettingInt('autoplaysec')
 
     def root(self):
         subscriptionData = json.loads(net.request(subscriptions_url % addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
@@ -370,7 +371,8 @@ class navigator:
             assets = None
         if assets is not None and assets != []:
             streams = [i['path'] for i in assets]
-            if player.player().play(ptype, pid, streams, image, meta, clip['blocks'][0]['content']['items'][0]['itemContent']['video']['duration'], clip['blocks'][0]['content']['items'][0]['itemContent']['video']['progress']['tcResume'] if clip['blocks'][0]['content']['items'][0]['itemContent']['progress'] else None, clip['blocks'][0]['content']['items'][0]['itemContent']['analytics']['heartbeat-v2'], firstplay):
+            chapters = clip['blocks'][0]['content']['items'][0]['itemContent']['video']["chapters"] if "chapters" in clip['blocks'][0]['content']['items'][0]['itemContent']['video'] else None
+            if player.player().play(ptype, pid, streams, image, meta, clip['blocks'][0]['content']['items'][0]['itemContent']['video']['duration'], clip['blocks'][0]['content']['items'][0]['itemContent']['video']['progress']['tcResume'] if clip['blocks'][0]['content']['items'][0]['itemContent']['progress'] else None, clip['blocks'][0]['content']['items'][0]['itemContent']['analytics']['heartbeat-v2'], firstplay, chapters=chapters):
                 if self.autoplaynext:
                     if len(clip['blocks'][0]['content']['items'])>0:
                         item = clip['blocks'][0]['content']['items'][1]
@@ -393,10 +395,10 @@ class navigator:
                                     duration = '0'
                             meta = {'title': title, 'plot': plot, 'duration': duration}
                             progressDialog = xbmcgui.DialogProgress()
-                            progressDialog.create("RTL+", "Következő videó lejátszása %d másodperc múlva:\n%s" % (10, title))
+                            progressDialog.create("RTL+", "Következő videó lejátszása %d másodperc múlva:\n%s" % (self.autoplaysec, title))
                             cancelled = False
-                            for sec in range(100, 0, -1):
-                                progressDialog.update(sec, 'Következő videó lejátszása %d másodperc múlva:\n%s' % (int(sec/10)+1, title))
+                            for sec in range(self.autoplaysec*10, 0, -1):
+                                progressDialog.update(int(sec/(self.autoplaysec*10)*100), 'Következő videó lejátszása %d másodperc múlva:\n%s' % (int(sec/10)+1, title))
                                 xbmc.sleep(100)
                                 if progressDialog.iscanceled():
                                     cancelled = True

@@ -1,3 +1,5 @@
+[B]1.0.26[/B]
+- Bevezető/főcím/stáblista átugrás
 [B]1.0.25[/B]
 - Leia BugFix
 [B]1.0.24[/B]

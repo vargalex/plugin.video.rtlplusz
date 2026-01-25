@@ -29,10 +29,13 @@
     <category label="InputStream">
         <setting id="drmsettings" type="action" label="InputStream Adaptive beállítások" option="close" action="RunPlugin(plugin://plugin.video.rtlplusz/?action=drmSettings)"></setting>
     </category>
-    <category label="Követés">
+    <category label="Lejátszás">
         <setting label="Lejátszási státusz/pozíció betöltése az RTL+-ból" type="bool" id="tracking" default="true" />
-        <setting label="Pontos pozíciók előolvasása" type="bool" id="trackingpreload" default="false" visible="eq(-1,true)"/>
-        <setting label="Leállításkor/befejezéskor a pozíció küldése az RTL+-hoz" type="bool" id="trackingwrite" default="true" visible="eq(-2,true)" />
+        <setting label="Pontos pozíciók előolvasása" type="bool" id="trackingpreload" default="false" subsetting="true" visible="eq(-1,true)"/>
+        <setting label="Leállításkor/befejezéskor a pozíció küldése az RTL+-hoz" type="bool" id="trackingwrite" default="true" subsetting="true" visible="eq(-2,true)" />
         <setting label="Következő videó automatikus lejátszása" type="bool" id="autoplaynext" default="true" />
+        <setting label="Automatikus lejátszás ennyi másodpercen belül" type="slider" id="autoplaysec" range="0,1,10" default="5" option="int" subsetting="true" visible="eq(-1,true)"/>
+        <setting label="Bevezető/főcím/stáblista átugrásának lehetősége" type="bool" id="chapterignore" default="true" />
+        <setting label="Automatikus átugrás ennyi másodpercen belül" type="slider" id="chapterignoresec" range="0,1,10" default="5" option="int" subsetting="true" visible="eq(-1,true)"/>
     </category>
 </settings>
