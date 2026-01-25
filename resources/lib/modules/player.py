@@ -213,7 +213,7 @@ class player:
                         xbmc.sleep(500)
                     else:
                         xbmc.sleep(100)
-                    if dlg is None:
+                    if dlg is None and current_sec>0:
                         for watchChapter in watchChapters:
                             chapterId = (watchChapter["type"], watchChapter["tcStart"], watchChapter["tcEnd"])
                             if chapterId not in handled_chapters:

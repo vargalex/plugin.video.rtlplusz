@@ -8,6 +8,8 @@ CANCEL_ACTIONS = {
     xbmcgui.ACTION_NAV_BACK,
     xbmcgui.ACTION_STOP,
     xbmcgui.ACTION_PARENT_DIR,
+    xbmcgui.ACTION_NAV_BACK,
+
 }
 
 class SkipDialog(xbmcgui.WindowXMLDialog):
@@ -22,6 +24,7 @@ class SkipDialog(xbmcgui.WindowXMLDialog):
         self.on_cancel = on_cancel
         self.event_name = event_name
         self.initialized = False
+        self.chapterignoretimeoutmode = xbmcaddon.Addon().getSettingInt('chapterignoretimeoutmode')
 
     def onInit(self):
         self.label_ctrl = self.getControl(1002)
@@ -65,6 +68,11 @@ class SkipDialog(xbmcgui.WindowXMLDialog):
 
         # Timeout → bezár
         if elapsed >= self.timeout*1000000000:
-            self.on_skip(self.tcEnd)
+            if self.chapterignoretimeoutmode == 0:
+                if self.on_skip:
+                    self.on_skip(self.tcEnd)
+            else:
+                if self.on_cancel:
+                    self.on_cancel()
             self.close()
             self.active = False
