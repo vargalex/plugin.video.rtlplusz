@@ -213,31 +213,32 @@ class player:
                         xbmc.sleep(500)
                     else:
                         xbmc.sleep(100)
-                    if dlg is None and current_sec>0:
-                        for watchChapter in watchChapters:
-                            chapterId = (watchChapter["type"], watchChapter["tcStart"], watchChapter["tcEnd"])
-                            if chapterId not in handled_chapters:
-                                if watchChapter["tcStart"] <= current_sec < watchChapter["tcEnd"] - 1:
-                                    handled_chapters.append(chapterId)
-                                    def skip(endTime):
-                                        nonlocal dlg
-                                        nonlocal current_sec
-                                        current_sec = endTime
-                                        player.seekTime(endTime)
-                                        dlg = None
+                    if dlg is None:
+                        if current_sec>0:
+                            for watchChapter in watchChapters:
+                                chapterId = (watchChapter["type"], watchChapter["tcStart"], watchChapter["tcEnd"])
+                                if chapterId not in handled_chapters:
+                                    if watchChapter["tcStart"] <= current_sec < watchChapter["tcEnd"] - 1:
+                                        handled_chapters.append(chapterId)
+                                        def skip(endTime):
+                                            nonlocal dlg
+                                            nonlocal current_sec
+                                            current_sec = endTime
+                                            player.seekTime(endTime)
+                                            dlg = None
 
-                                    def cancel():
-                                        nonlocal dlg
-                                        dlg = None
-                                        pass
+                                        def cancel():
+                                            nonlocal dlg
+                                            dlg = None
+                                            pass
 
-                                    dlg = SkipDialog(self.DIALOG_XML, addon_path, tcEnd=watchChapter["tcEnd"], event_name=chapterTypes[watchChapter["type"]],
-                                                    timeout=self.chapterignoresec, on_skip=skip, on_cancel=cancel)
-                                    dlg.show()
-                                    if player.isPlaying():
-                                        dlg.update(player)
-                                    break
-                        # Update a dialog állapotát
+                                        dlg = SkipDialog(self.DIALOG_XML, addon_path, tcEnd=watchChapter["tcEnd"], event_name=chapterTypes[watchChapter["type"]],
+                                                        timeout=self.chapterignoresec, on_skip=skip, on_cancel=cancel)
+                                        dlg.show()
+                                        if player.isPlaying():
+                                            dlg.update(player)
+                                        break
+                            # Update a dialog állapotát
                     elif player.isPlaying():
                         dlg.update(player)
                 else:
