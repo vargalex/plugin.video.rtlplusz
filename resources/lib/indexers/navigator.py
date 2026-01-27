@@ -394,6 +394,7 @@ class navigator:
                                 else:
                                     duration = '0'
                             meta = {'title': title, 'plot': plot, 'duration': duration}
+                            xbmc.sleep(100)
                             progressDialog = xbmcgui.DialogProgress()
                             progressDialog.create("RTL+", "Következő videó lejátszása %d másodperc múlva:\n%s" % (self.autoplaysec, title))
                             cancelled = False
