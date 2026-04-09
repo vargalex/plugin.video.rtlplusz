@@ -36,6 +36,11 @@ notify_url = 'https://heartbeat-v2.6cloud.fr/v2/platforms/m6group_web/notify'
 session_url = '%s/session' % notify_url
 view_url = '%s/view' % notify_url
 
+class State(object):
+    def __init__(self):
+        self.dlg = None
+        self.current_sec = 0
+
 class player:
     DIALOG_XML = "skip_overlay.xml"
     def __init__(self):
@@ -193,66 +198,62 @@ class player:
         else:
             player.play(stream_url, li)
         if dash_url != [] or hls_url != []:
-            current_sec = 0
             total_sec = 0
             for i in range(0, 240):
                 if player.isPlaying():
                     break
                 xbmc.Monitor().waitForAbort(1)
-            dlg = None
+            state = State()
             handled_chapters = []
-            while not xbmc.Monitor().abortRequested() and player.isPlaying():
+            monitor = xbmc.Monitor()
+            while not monitor.abortRequested() and player.isPlaying():
                 try:
-                    if current_sec < player.getTotalTime()-5:
-                        current_sec = player.getTime()
                     total_sec = player.getTotalTime()
-                except:
-                    pass
+                    if state.current_sec < player.getTotalTime()-5:
+                        state.current_sec = player.getTime()
+                except Exception as e:
+                    xbmc.log("Time read error: {}".format(e), xbmc.LOGERROR)
                 if self.chapterignore and watchChapters != []:
-                    if dlg is None:
+                    if state.dlg is None:
                         xbmc.sleep(500)
                     else:
                         xbmc.sleep(100)
-                    if dlg is None:
-                        if current_sec>0:
+                    if state.dlg is None:
+                        if state.current_sec>0:
                             for watchChapter in watchChapters:
                                 chapterId = (watchChapter["type"], watchChapter["tcStart"], watchChapter["tcEnd"])
                                 if chapterId not in handled_chapters:
-                                    if watchChapter["tcStart"] <= current_sec < watchChapter["tcEnd"] - 1:
+                                    if watchChapter["tcStart"] <= state.current_sec < watchChapter["tcEnd"] - 1:
                                         handled_chapters.append(chapterId)
                                         def skip(endTime):
-                                            nonlocal dlg
-                                            nonlocal current_sec
-                                            current_sec = endTime
+                                            state.current_sec = endTime
                                             player.seekTime(endTime)
-                                            dlg = None
+                                            state.dlg = None
 
                                         def cancel():
-                                            nonlocal dlg
-                                            dlg = None
-                                            pass
+                                            state.dlg = None
 
-                                        dlg = SkipDialog(self.DIALOG_XML, addon_path, tcEnd=watchChapter["tcEnd"], event_name=chapterTypes[watchChapter["type"]],
+                                        state.dlg = SkipDialog(self.DIALOG_XML, addon_path, tcEnd=watchChapter["tcEnd"], event_name=chapterTypes[watchChapter["type"]],
                                                         timeout=self.chapterignoresec, on_skip=skip, on_cancel=cancel)
-                                        dlg.show()
+                                        state.dlg.show()
                                         if player.isPlaying():
-                                            dlg.update(player)
+                                            state.dlg.update(player)
                                         break
                             # Update a dialog állapotát
                     elif player.isPlaying():
-                        dlg.update(player)
+                        state.dlg.update(player)
                 else:
-                    xbmc.Monitor().waitForAbort(1)
-            if current_sec >= total_sec - 5:
-                current_sec = total_sec
+                    monitor.waitForAbort(1)
+            if state.current_sec >= total_sec - 5:
+                state.current_sec = total_sec
             if self.tracking and self.trackingwrite and "sessionId" in sessionData:
                 heartbeat["view"]["platformCode"] = heartbeat["session"]["platformCode"]
-                heartbeat["view"]["tc"] = current_sec
+                heartbeat["view"]["tc"] = state.current_sec
                 heartbeat["view"]["sessionId"] = sessionData["sessionId"]
                 heartbeat["view"]["sequenceNumber"] = 1
                 heartbeat["view"]["tcRelative"] = 0
                 viewData = json.loads(net.request(view_url, post=json.dumps(heartbeat["view"]).encode("utf-8"), headers={'authorization': 'Bearer %s' % self.getJwtToken(), 'content-type': 'application/json'}))
-            if current_sec >= total_sec:
+            if state.current_sec >= total_sec:
                 return True
         return
 

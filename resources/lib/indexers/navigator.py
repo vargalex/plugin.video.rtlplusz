@@ -380,8 +380,8 @@ class navigator:
                         clip_type = py2_encode(item['itemContent']['action']['target']['value_layout']['type'])
                         if clip_type == 'video':
                             title = py2_encode("%s" % item['itemContent']['extraTitle'] if item['itemContent']['extraTitle'] != None else item['itemContent']['analytics']['googleAnalytics']['eventLabel'] if item['itemContent']['analytics'] != None and item['itemContent']['analytics']['googleAnalytics'] != None and item['itemContent']['analytics']['googleAnalytics']['eventLabel'] != None else item['itemContent']['image']['caption'] if item['itemContent']['image'] != None and item['itemContent']['image']['caption'] != None else content['entity']['metadata']['title'])
-                            if item['itemContent']['title'] and item['itemContent']['title'].lower() not in title.lower():
-                                title = "%s (%s)" % (title, item['itemContent']['title'])
+                            if py2_encode(item['itemContent']['title']) and py2_encode(item['itemContent']['title']).lower() not in title.lower():
+                                title = "%s (%s)" % (title, py2_encode(item['itemContent']['title']))
                             thumb = img_link % item['itemContent']['image']['id']
                             plot = py2_encode(item['itemContent']['description'])
                             match = re.match(r'^([0-9]*):([0-9]*)$', item['itemContent']['highlight']) if item['itemContent']['highlight'] else None

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import xbmcgui
 import xbmc
 import xbmcaddon
@@ -15,10 +16,10 @@ CANCEL_ACTIONS = {
 class SkipDialog(xbmcgui.WindowXMLDialog):
 
     def __init__(self, xmlfilename, addon_path, defaultSkin = "Default", defaultRes = "720p", tcEnd=0, event_name=None, timeout=5, on_skip=None, on_cancel=None):
-        super().__init__(xmlfilename, addon_path, defaultSkin, defaultRes)
+        super(SkipDialog, self).__init__(xmlfilename, addon_path, defaultSkin, defaultRes)
         self.tcEnd = tcEnd
         self.timeout = timeout
-        self.start_time = time.time_ns()
+        self.start_time = time.time()*1000
         self.active = True
         self.on_skip = on_skip
         self.on_cancel = on_cancel
@@ -55,9 +56,9 @@ class SkipDialog(xbmcgui.WindowXMLDialog):
             return
 
         current_time = player.getTime()
-        elapsed = time.time_ns() - self.start_time
-        remaining = max(0, int(self.timeout*1000000000 - elapsed))
-        percent = int((remaining / (self.timeout*1000000000)) * 100)
+        elapsed = time.time()*1000 - self.start_time
+        remaining = max(0, self.timeout*1000 - elapsed)
+        percent = int((remaining / (self.timeout*1000)) * 100)
         self.progress.setPercent(percent)
 
         # Idő elérte a tcEnd-et → bezár
@@ -67,7 +68,7 @@ class SkipDialog(xbmcgui.WindowXMLDialog):
             return
 
         # Timeout → bezár
-        if elapsed >= self.timeout*1000000000:
+        if elapsed >= self.timeout*1000:
             if self.chapterignoretimeoutmode == 0:
                 if self.on_skip:
                     self.on_skip(self.tcEnd)
