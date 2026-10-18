@@ -31,7 +31,7 @@ else:
     from urllib import urlencode
     from urllib import addinfourl
 
-def request(url, post=None, headers={}, redirect=True, timeout=30, isPatchRequest=False):
+def request(url, post=None, headers={}, redirect=True, timeout=30, isPatchRequest=False, method=None):
     handlers = []
     if (2, 7, 8) < sys.version_info < (2, 7, 12):
         try:
@@ -74,7 +74,9 @@ def request(url, post=None, headers={}, redirect=True, timeout=30, isPatchReques
 
     request = urllib2.Request(url, data=post, headers=headers)
     if isPatchRequest:
-        request.get_method = lambda: "PATCH"
+        method = "PATCH"
+    if method:
+        request.get_method = lambda: method
     response = urllib2.urlopen(request, timeout=timeout)
 
     if redirect == False:

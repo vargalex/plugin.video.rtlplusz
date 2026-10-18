@@ -55,9 +55,15 @@ delete_device_url = 'https://6play-users.6play.fr/v3/rtlhu/m6group_web/devices/t
 subscriptions_url = 'https://stores.6cloud.fr/premium/v4/customers/rtlhu/platforms/m6group_web/users/%s/subscriptions'
 desktop_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-web-20/navigation/desktop'
 revoke_current_device_url = 'https://6play-users.6play.fr/v3/rtlhu/m6group_web/devices/revokeCurrentDevice'
+pairing_box_url = 'https://users.6cloud.fr/v2/platforms/%s/box' % player.box_platform
+pairing_status_url = 'https://users.6cloud.fr/v2/platforms/%s/boxTypes/%s/boxIds/%%s/tokens/%%s/status' % (player.box_platform, player.box_type)
+pairing_unpair_url = 'https://users.6cloud.fr/v2/platforms/%s/users/%%s/boxTypes/%s/boxIds/%%s' % (player.box_platform, player.box_type)
+pairing_web_url = 'https://www.rtlplusz.hu/device-pairing/%s'
+pairing_poll_seconds = 5
+pairing_timeout_seconds = 600
 
 class navigator:
-    def __init__(self):
+    def __init__(self, login=True):
         try:
             locale.setlocale(locale.LC_ALL, "")
         except:
@@ -65,14 +71,15 @@ class navigator:
         self.username = addon().getSetting('email').strip()
         self.password = addon().getSetting('password').strip()
 
-        if not (self.username and self.password) != '':
+        if login and addon().getSetting('boxid') == '' and not (self.username and self.password) != '':
             if xbmcgui.Dialog().ok('RTL+', u'A kieg\u00E9sz\u00EDt\u0151 haszn\u00E1lat\u00E1hoz add meg a bejelentkez\u00E9si adataidat.'):
                 xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
                 addon(addon().getAddonInfo('id')).openSettings()
             self.username = addon().getSetting('email').strip()
             self.password = addon().getSetting('password').strip()
         self.setDeviceID()
-        self.Login()
+        if login:
+            self.Login()
         self.base_path = py2_decode(translatePath(addon().getAddonInfo('profile')))
         self.searchFileName = os.path.join(self.base_path, "search.history")
         self.cacheTime = addon().getSettingInt('cachetime')
@@ -421,7 +428,57 @@ class navigator:
         device_consents_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/deviceid-%s/consents'
         net.request(device_consents_url % addon().getSetting('deviceid'), post='{"analytics":{"consent":true,"form":"explicit"},"adtargeting":{"consent":true,"form":"explicit"},"personalization":{"consent":true,"form":"explicit"},"multidevicematching":{"consent":true,"form":"explicit"}}'.encode('utf-8'), headers={'authorization': 'Bearer %s' % jwtToken, 'content-type': 'application/json'})
 
+    def codeLogin(self):
+        boxid = str(uuid.uuid4())
+        try:
+            jwtToken = player.getBoxJwt(boxid)
+            headers = {'authorization': 'Bearer %s' % jwtToken, 'x-auth-box-id': boxid, 'x-auth-box-type': player.box_type}
+            boxName = xbmc.getInfoLabel('System.FriendlyName')
+            data = json.loads(net.request(pairing_box_url, post=json.dumps({'boxId': boxid, 'boxType': player.box_type, 'boxName': boxName}).encode('utf-8'), headers=dict(headers, **{'content-type': 'application/json'})))
+            code = data['token']
+        except:
+            xbmcgui.Dialog().ok('RTL+', u'Nem siker\u00FClt bejelentkez\u00E9si k\u00F3dot k\u00E9rni!')
+            return
+        message = u'Jelentkezz be egy b\u00F6ng\u00E9sz\u0151ben az rtlplusz.hu oldalon (One / Google / Apple / Facebook fi\u00F3kkal is lehet), majd nyisd meg:\n[B]%s[/B]\n\u00E9s hagyd j\u00F3v\u00E1 a p\u00E1ros\u00EDt\u00E1st ezzel a k\u00F3ddal: [B][COLOR gold]%s[/COLOR][/B]' % (pairing_web_url % code, code)
+        dialog = xbmcgui.DialogProgress()
+        dialog.create(u'RTL+ bejelentkez\u00E9s k\u00F3ddal', message)
+        uid = None
+        elapsed = 0
+        while not uid and elapsed < pairing_timeout_seconds and not dialog.iscanceled():
+            dialog.update(100 * elapsed // pairing_timeout_seconds, message)
+            xbmc.sleep(pairing_poll_seconds * 1000)
+            elapsed += pairing_poll_seconds
+            try:
+                data = json.loads(net.request(pairing_status_url % (boxid, code), headers=dict(headers)))
+                uid = data.get('uid')
+            except:
+                pass
+        dialog.close()
+        if not uid:
+            if elapsed >= pairing_timeout_seconds:
+                xbmcgui.Dialog().ok('RTL+', u'A k\u00F3d lej\u00E1rt, k\u00E9rlek pr\u00F3b\u00E1ld \u00FAjra!')
+            return
+        addon().setSetting('boxid', boxid)
+        addon().setSetting('deviceid', boxid)
+        addon().setSetting('userid', uid)
+        addon().setSetting('signature', '')
+        addon().setSetting('s.timestamp', str(int(time.time())))
+        addon().setSetting('email', '')
+        addon().setSetting('password', '')
+        addon().setSetting('profileid', '')
+        addon().setSetting('jwttoken', '')
+        addon().setSetting('loggedin', 'true')
+        jwtToken = player.player().getJwtToken()
+        self.consentOnDevice(jwtToken)
+        js = json.loads(net.request(profile_url % uid, headers={'authorization': 'Bearer %s' % jwtToken}))
+        addon().setSetting('profileid', js[0]['uid'])
+        addon().setSetting('jwttoken', '')
+        xbmcgui.Dialog().ok('RTL+', u'Sikeres bejelentkez\u00E9s!')
+        xbmc.executebuiltin("Container.Refresh")
+
     def Login(self):
+        if addon().getSetting('boxid') != '':
+            return
         t1 = int(addon().getSetting('s.timestamp'))
         t2 = int(time.time())
         update = (abs(t2 - t1) / 3600) >= 24 or t1 == 0
@@ -510,7 +567,15 @@ class navigator:
     def Logout(self):
         dialog = xbmcgui.Dialog()
         if 1 == dialog.yesno(u'RTL+ kijelentkez\u00E9s', u'Val\u00F3ban ki szeretn\u00E9l jelentkezni?', '', ''):
-            net.request(revoke_current_device_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}, isPatchRequest = True)
+            boxid = addon().getSetting('boxid')
+            if boxid != '':
+                try:
+                    net.request(pairing_unpair_url % (addon().getSetting('userid'), boxid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken(), 'x-auth-force-uid': addon().getSetting('userid')}, method='DELETE')
+                except:
+                    pass
+            else:
+                net.request(revoke_current_device_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}, isPatchRequest = True)
+            addon().setSetting('boxid', '')
             addon().setSetting('userid', '')
             addon().setSetting('signature', '')
             addon().setSetting('s.timestamp', '0')

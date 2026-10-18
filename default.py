@@ -65,6 +65,9 @@ elif action == 'drmSettings':
 elif action == 'logout':
     navigator().Logout()
 
+elif action == 'codelogin':
+    navigator(login=False).codeLogin()
+
 elif action == 'search':
     navigator().doSearch(search)
 

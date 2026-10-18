@@ -16,6 +16,7 @@
         <setting label="RTL+ bejelentkezés" type="lsep" />
         <setting label="E-mail:" type="text" id="email" default="" />
         <setting label="Jelszó:" type="text" id="password" option="hidden" default="" />
+        <setting id="codelogin" type="action" label="Bejelentkezés kóddal (One / Google / Apple / Facebook fiókhoz is)" option="close" action="RunPlugin(plugin://plugin.video.rtlplusz/?action=codelogin)" />
         <setting type="text" id="userid" visible="false" default="" />
         <setting type="text" id="signature" visible="false" default="" />
         <setting type="text" id="s.timestamp" visible="false" default="0" />
@@ -25,6 +26,7 @@
         <setting id="logout" type="action" label="[B][COLOR red]Kijelentkezés[/COLOR][/B]" option="close" action="RunPlugin(plugin://plugin.video.rtlplusz/?action=logout)" visible="eq(-1,true)"></setting>
         <setting type="text" id="jwttoken" visible="false" default="" />
         <setting type="text" id="subscriptionname" visible="false" default="" />
+        <setting type="text" id="boxid" visible="false" default="" />
     </category>
     <category label="InputStream">
         <setting id="drmsettings" type="action" label="InputStream Adaptive beállítások" option="close" action="RunPlugin(plugin://plugin.video.rtlplusz/?action=drmSettings)"></setting>

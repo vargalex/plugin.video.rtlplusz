@@ -19,7 +19,7 @@
 '''
 
 
-import os, sys, json, xbmc, xbmcaddon, xbmcgui, xbmcplugin, re, base64, time
+import os, sys, json, xbmc, xbmcaddon, xbmcgui, xbmcplugin, re, base64, time, hmac, hashlib
 from resources.lib.modules import net
 from resources.lib.modules import m3u8_parser
 from resources.lib.modules.utils import py2_encode
@@ -40,6 +40,32 @@ class State(object):
     def __init__(self):
         self.dlg = None
         self.current_sec = 0
+
+# Párosított (TV-s) eszköz hitelesítése: az RTL+ Android TV alkalmazásból kinyert platform kód és HMAC kulcs
+box_platform = 'm6group_android_tv'
+box_type = 'android_tv'
+box_secret = b'na9zo4Phiakioph7Ees4Vah6heo0jaoquehadieh'
+
+def boxHeaders(path, boxid):
+    ts = int(time.time())
+    token = hmac.new(box_secret, (path + str(ts // 60)).encode('utf-8'), hashlib.sha1).hexdigest()
+    return {
+        'x-auth-box-id': boxid,
+        'x-auth-box-type': box_type,
+        'x-auth-token': token,
+        'x-auth-token-timestamp': str(ts),
+        'x-auth-device-id': boxid,
+        'x-auth-device-name': "%s ver.: %s" % (xbmc.getInfoLabel('System.FriendlyName'), xbmc.getInfoLabel(buildVersionStr).split(" ")[0])
+    }
+
+def getBoxJwt(boxid, uid=None, profileid=None):
+    path = '/v2/platforms/%s/getJwt' % box_platform
+    headers = boxHeaders(path, boxid)
+    if uid:
+        headers['x-auth-gigya-uid'] = uid
+    if profileid:
+        headers['x-auth-profile-id'] = profileid
+    return json.loads(net.request('https://front-auth.6cloud.fr' + path, headers=headers))['token']
 
 class player:
     DIALOG_XML = "skip_overlay.xml"
@@ -283,6 +309,11 @@ class player:
                     xbmc.log(errMsg, xbmc.LOGERROR)
             else:
                 xbmc.log("RTL+: jwtToken not match to (.*)\.(.*)\.(.*). jwtToken: %s" % jwtToken, xbmc.LOGERROR)
+        boxid = xbmcaddon.Addon().getSetting('boxid')
+        if boxid != "":
+            jwtToken = getBoxJwt(boxid, self.uid, xbmcaddon.Addon().getSetting('profileid'))
+            xbmcaddon.Addon().setSetting('jwttoken', jwtToken)
+            return jwtToken
         headers = {
             'x-auth-gigya-uid': self.uid,
             'x-auth-gigya-signature': xbmcaddon.Addon().getSetting('signature'),
