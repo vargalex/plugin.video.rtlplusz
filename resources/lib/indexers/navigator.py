@@ -61,6 +61,7 @@ pairing_unpair_url = 'https://users.6cloud.fr/v2/platforms/%s/users/%%s/boxTypes
 pairing_web_url = 'https://www.rtlplusz.hu/device-pairing/%s'
 pairing_poll_seconds = 5
 pairing_timeout_seconds = 600
+pairing_property = 'plugin.video.rtlplusz.pairing'
 
 class navigator:
     def __init__(self, login=True):
@@ -68,13 +69,16 @@ class navigator:
             locale.setlocale(locale.LC_ALL, "")
         except:
             pass
+        if login:
+            self.waitForPairing()
         self.username = addon().getSetting('email').strip()
         self.password = addon().getSetting('password').strip()
 
         if login and addon().getSetting('boxid') == '' and not (self.username and self.password) != '':
-            if xbmcgui.Dialog().ok('RTL+', u'A kieg\u00E9sz\u00EDt\u0151 haszn\u00E1lat\u00E1hoz add meg a bejelentkez\u00E9si adataidat.'):
+            if xbmcgui.Dialog().ok('RTL+', u'A kieg\u00E9sz\u00EDt\u0151 haszn\u00E1lat\u00E1hoz add meg a bejelentkez\u00E9si adataidat, vagy haszn\u00E1ld a Bejelentkez\u00E9s k\u00F3ddal gombot.'):
                 xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
                 addon(addon().getAddonInfo('id')).openSettings()
+                self.waitForPairing()
             self.username = addon().getSetting('email').strip()
             self.password = addon().getSetting('password').strip()
         self.setDeviceID()
@@ -428,7 +432,22 @@ class navigator:
         device_consents_url = 'https://6play-users.6play.fr/v2/platforms/m6group_web/users/deviceid-%s/consents'
         net.request(device_consents_url % addon().getSetting('deviceid'), post='{"analytics":{"consent":true,"form":"explicit"},"adtargeting":{"consent":true,"form":"explicit"},"personalization":{"consent":true,"form":"explicit"},"multidevicematching":{"consent":true,"form":"explicit"}}'.encode('utf-8'), headers={'authorization': 'Bearer %s' % jwtToken, 'content-type': 'application/json'})
 
+    def waitForPairing(self):
+        # a beállításokból indított kódos bejelentkezés végét (siker, megszakítás vagy lejárat) várja meg
+        waited = 0
+        xbmc.sleep(500)
+        while xbmcgui.Window(10000).getProperty(pairing_property) == 'true' and waited < pairing_timeout_seconds + 30 and not xbmc.Monitor().abortRequested():
+            xbmc.sleep(1000)
+            waited += 1
+
     def codeLogin(self):
+        xbmcgui.Window(10000).setProperty(pairing_property, 'true')
+        try:
+            self.pairDevice()
+        finally:
+            xbmcgui.Window(10000).clearProperty(pairing_property)
+
+    def pairDevice(self):
         boxid = str(uuid.uuid4())
         try:
             jwtToken = player.getBoxJwt(boxid)
@@ -446,6 +465,8 @@ class navigator:
         elapsed = 0
         while not uid and elapsed < pairing_timeout_seconds and not dialog.iscanceled():
             dialog.update(100 * elapsed // pairing_timeout_seconds, message)
+            xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
+            xbmc.executebuiltin('Dialog.Close(busydialog)')
             xbmc.sleep(pairing_poll_seconds * 1000)
             elapsed += pairing_poll_seconds
             try:
@@ -479,6 +500,10 @@ class navigator:
     def Login(self):
         if addon().getSetting('boxid') != '':
             return
+        if not (self.username and self.password):
+            addon().setSetting('loggedin', 'false')
+            addon().setSetting('s.timestamp', '0')
+            sys.exit(0)
         t1 = int(addon().getSetting('s.timestamp'))
         t2 = int(time.time())
         update = (abs(t2 - t1) / 3600) >= 24 or t1 == 0

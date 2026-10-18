@@ -24,11 +24,15 @@ if sys.version_info[0] == 3:
     from urllib.parse import parse_qsl
 else:
     from urlparse import parse_qsl
-from resources.lib.indexers.navigator import navigator
-
 params = dict(parse_qsl(sys.argv[2].replace('?','')))
 
 action = params.get('action')
+
+if action == 'codelogin':
+    # jelzés a párhuzamosan induló főoldalnak, hogy várja meg a párosítást
+    xbmcgui.Window(10000).setProperty('plugin.video.rtlplusz.pairing', 'true')
+
+from resources.lib.indexers.navigator import navigator
 
 fanart = params.get('fanart')
 
