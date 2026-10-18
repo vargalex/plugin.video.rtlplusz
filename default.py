@@ -84,6 +84,9 @@ elif action == 'newsearch':
 elif action == 'deletesearchhistory':
     navigator().deleteSearchHistory()
 
+elif action == 'account':
+    navigator().account()
+
 elif action == 'paireddevices':
     navigator().deleteDevice()
 

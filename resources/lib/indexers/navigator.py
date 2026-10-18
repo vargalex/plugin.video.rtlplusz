@@ -57,6 +57,7 @@ desktop_url = 'https://layout.6cloud.fr/front/v1/rtlhu/m6group_web/main/token-we
 revoke_current_device_url = 'https://6play-users.6play.fr/v3/rtlhu/m6group_web/devices/revokeCurrentDevice'
 pairing_box_url = 'https://users.6cloud.fr/v2/platforms/%s/box' % player.box_platform
 pairing_status_url = 'https://users.6cloud.fr/v2/platforms/%s/boxTypes/%s/boxIds/%%s/tokens/%%s/status' % (player.box_platform, player.box_type)
+pairing_users_url = 'https://users.6cloud.fr/v2/platforms/%s/boxTypes/%s/boxIds/%%s/users' % (player.box_platform, player.box_type)
 pairing_unpair_url = 'https://users.6cloud.fr/v2/platforms/%s/users/%%s/boxTypes/%s/boxIds/%%s' % (player.box_platform, player.box_type)
 pairing_web_url = 'https://www.rtlplusz.hu/device-pairing/%s'
 pairing_poll_seconds = 5
@@ -101,6 +102,7 @@ class navigator:
         if subscriptionName != addon().getSetting("subscriptionname"):
             addon().setSetting('subscriptionname', subscriptionName)
             xbmcgui.Dialog().notification("RTL+", "Jelenlegi csomagod: %s" % subscriptionName)
+        self.addDirectoryItem(py2_encode('Fiókom'), 'account' , '', 'DefaultUser.png')
         self.addDirectoryItem(py2_encode('[COLOR red]Párosított eszközök törlése[/COLOR]'), 'paireddevices' , '', 'DefaultTVShows.png')
         self.addDirectoryItem(py2_encode('Keresés'), 'getsearches' , '', 'DefaultTVShows.png')
         datas = json.loads(net.request(desktop_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
@@ -486,6 +488,7 @@ class navigator:
         addon().setSetting('s.timestamp', str(int(time.time())))
         addon().setSetting('email', '')
         addon().setSetting('password', '')
+        addon().setSetting('accountinfo', '')
         addon().setSetting('profileid', '')
         addon().setSetting('jwttoken', '')
         addon().setSetting('loggedin', 'true')
@@ -563,6 +566,8 @@ class navigator:
 
             addon().setSetting('userid', jsonparse['UID'])
             addon().setSetting('signature', jsonparse['UIDSignature'])
+            profile = jsonparse.get('profile') or {}
+            addon().setSetting('accountinfo', json.dumps({'firstname': profile.get('firstName'), 'lastname': profile.get('lastName'), 'email': profile.get('email'), 'birthday': profile.get('birthDay'), 'birthmonth': profile.get('birthMonth'), 'birthyear': profile.get('birthYear'), 'gender': profile.get('gender'), 'createdat': jsonparse.get('created')}))
             addon().setSetting('s.timestamp', jsonparse['signatureTimestamp'])
             addon().setSetting('loggedin', 'true')
 
@@ -593,13 +598,13 @@ class navigator:
         dialog = xbmcgui.Dialog()
         if 1 == dialog.yesno(u'RTL+ kijelentkez\u00E9s', u'Val\u00F3ban ki szeretn\u00E9l jelentkezni?', '', ''):
             boxid = addon().getSetting('boxid')
-            if boxid != '':
-                try:
+            try:
+                if boxid != '':
                     net.request(pairing_unpair_url % (addon().getSetting('userid'), boxid), headers={'authorization': 'Bearer %s' % player.player().getJwtToken(), 'x-auth-force-uid': addon().getSetting('userid')}, method='DELETE')
-                except:
-                    pass
-            else:
-                net.request(revoke_current_device_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}, isPatchRequest = True)
+                else:
+                    net.request(revoke_current_device_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}, isPatchRequest = True)
+            except:
+                xbmc.log('RTL+: error on revoking the device at logout, clearing local data anyway', xbmc.LOGERROR)
             addon().setSetting('boxid', '')
             addon().setSetting('userid', '')
             addon().setSetting('signature', '')
@@ -607,13 +612,14 @@ class navigator:
             addon().setSetting('loggedin', 'false')
             addon().setSetting('email', '')
             addon().setSetting('password', '')
+            addon().setSetting('accountinfo', '')
             addon().setSetting('deviceid', '')
             addon().setSetting('jwttoken', '')
             addon().setSetting('profileid', '')
             addon().setSetting('subscriptionname', '')
-            xbmc.executebuiltin("XBMC.Container.Update(path,replace)")
-            xbmc.executebuiltin("XBMC.ActivateWindow(Home)")
             dialog.ok('RTL+', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
+            # az ActivateWindow builtin nem tölt újra, ha már a kiegészítő főoldalán állunk; a JSON-RPC változat igen
+            xbmc.executeJSONRPC(json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': 'GUI.ActivateWindow', 'params': {'window': 'videos', 'parameters': [sysaddon]}}))
         
         return
 
@@ -701,6 +707,73 @@ class navigator:
         xbmcplugin.setContent(syshandle, type)
         #xbmcplugin.addSortMethod(syshandle, xbmcplugin.SORT_METHOD_TITLE)
         xbmcplugin.endOfDirectory(syshandle, cacheToDisc=True)
+
+    def account(self):
+        def date(ts):
+            return time.strftime('%Y.%m.%d.', time.localtime(int(ts)))
+        uid = addon().getSetting('userid')
+        boxid = addon().getSetting('boxid')
+        headers = {'authorization': 'Bearer %s' % player.player().getJwtToken()}
+        lines = []
+        user = None
+        if boxid != '':
+            try:
+                users = json.loads(net.request(pairing_users_url % boxid, headers=dict(headers, **{'x-auth-box-id': boxid, 'x-auth-box-type': player.box_type})))
+                user = next((u for u in users if u.get('uid') == uid), None)
+            except:
+                xbmc.log('RTL+: error on fetching paired user data', xbmc.LOGERROR)
+        else:
+            if addon().getSetting('accountinfo') == '' and self.username and self.password:
+                # frissítés előtti, még érvényes jelszavas belépésnél nincs mentett profil: újralogin menti el
+                addon().setSetting('s.timestamp', '0')
+                self.Login()
+            try:
+                user = json.loads(addon().getSetting('accountinfo'))
+            except:
+                xbmc.log('RTL+: error on parsing stored account info', xbmc.LOGERROR)
+        if user:
+            name = " ".join(n for n in [user.get('firstname'), user.get('lastname')] if n)
+            if name:
+                lines.append(u'N\u00E9v: %s' % name)
+            if user.get('email'):
+                lines.append('E-mail: %s' % user['email'])
+            if user.get('birthyear'):
+                lines.append(u'Sz\u00FClet\u00E9si d\u00E1tum: %04d.%02d.%02d.' % (user['birthyear'], user.get('birthmonth') or 0, user.get('birthday') or 0))
+            if user.get('gender') in ('m', 'f'):
+                lines.append('Nem: %s' % (u'f\u00E9rfi' if user['gender'] == 'm' else u'n\u0151'))
+            if user.get('createdat'):
+                lines.append(u'Regisztr\u00E1ci\u00F3: %s' % user['createdat'][:10].replace('-', '.') + '.')
+        elif addon().getSetting('email') != '':
+            lines.append('E-mail: %s' % addon().getSetting('email'))
+        lines.append(u'Bejelentkez\u00E9s: %s' % (u'k\u00F3ddal p\u00E1ros\u00EDtott eszk\u00F6z' if boxid != '' else u'e-mail c\u00EDm \u00E9s jelsz\u00F3'))
+        try:
+            profiles = json.loads(net.request(profile_url % uid, headers=headers))
+            current = next((p for p in profiles if p.get('uid') == addon().getSetting('profileid')), None)
+            if current and current.get('username'):
+                lines.append('Profil: %s (%d profil)' % (current['username'], len(profiles)))
+        except:
+            xbmc.log('RTL+: error on fetching profiles', xbmc.LOGERROR)
+        try:
+            subscriptions = json.loads(net.request(subscriptions_url % uid, headers=headers))['current']
+        except:
+            xbmcgui.Dialog().ok('RTL+', u'Nem siker\u00FClt lek\u00E9rni a fi\u00F3kadatokat!')
+            return
+        if not subscriptions:
+            lines.append('Csomag: RTL+ Light')
+        for subscription in subscriptions:
+            offer = subscription['offer']
+            contract = subscription.get('current_contract') or {}
+            lines.append('')
+            lines.append('Csomag: [COLOR gold]%s[/COLOR]' % offer['title'])
+            for feature in offer.get('features', []):
+                lines.append('  - %s' % feature['code'])
+            if contract.get('start_date'):
+                lines.append(u'Kezdete: %s' % date(contract['start_date']))
+            if contract.get('end_date'):
+                lines.append(u'%s: %s' % (u'K\u00F6vetkez\u0151 megújítás' if contract.get('recurring') else u'Lej\u00E1rat', date(contract['end_date'])))
+            if contract.get('next_billing_price'):
+                lines.append(u'K\u00F6vetkez\u0151 d\u00EDj: %s' % contract['next_billing_price'])
+        xbmcgui.Dialog().textviewer(u'RTL+ fi\u00F3k', py2_encode("\n".join(lines)))
 
     def deleteDevice(self):
         data = json.loads(net.request(devices_management_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))

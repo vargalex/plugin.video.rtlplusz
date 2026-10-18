@@ -13,6 +13,7 @@
 		<platform>all</platform>
 		<news>
 			- Bejelentkezés kóddal (One / Google / Apple / Facebook fiókhoz is)
+			- Fiókom menüpont a fiók- és előfizetési adatokkal
 		</news>
 		<assets>
 		  <icon>icon.png</icon>

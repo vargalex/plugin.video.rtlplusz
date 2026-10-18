@@ -27,6 +27,7 @@
         <setting type="text" id="jwttoken" visible="false" default="" />
         <setting type="text" id="subscriptionname" visible="false" default="" />
         <setting type="text" id="boxid" visible="false" default="" />
+        <setting type="text" id="accountinfo" visible="false" default="" />
     </category>
     <category label="InputStream">
         <setting id="drmsettings" type="action" label="InputStream Adaptive beállítások" option="close" action="RunPlugin(plugin://plugin.video.rtlplusz/?action=drmSettings)"></setting>
