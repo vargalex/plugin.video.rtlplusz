@@ -239,6 +239,8 @@ class player:
                         state.current_sec = player.getTime()
                 except Exception as e:
                     xbmc.log("Time read error: {}".format(e), xbmc.LOGERROR)
+                if state.dlg is not None and not state.dlg.active:
+                    state.dlg = None  # a dialógus magától zárult be (elérte a fejezet végét), a következő fejezetnél újra kell nyílnia
                 if self.chapterignore and watchChapters != []:
                     if state.dlg is None:
                         xbmc.sleep(500)

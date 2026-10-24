@@ -6,3 +6,4 @@
 
 # compressed addon
 plugin*.zip
+__pycache__/
