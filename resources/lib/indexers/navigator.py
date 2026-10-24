@@ -103,6 +103,9 @@ class navigator:
             addon().setSetting('subscriptionname', subscriptionName)
             xbmcgui.Dialog().notification("RTL+", "Jelenlegi csomagod: %s" % subscriptionName)
         self.addDirectoryItem(py2_encode('Fiókom'), 'account' , '', 'DefaultUser.png')
+        profileName = addon().getSetting('profilename')
+        self.addDirectoryItem(py2_encode('Profil váltás%s' % (' (%s)' % profileName if profileName else '')), 'profiles' , '', 'DefaultUser.png')
+        self.addDirectoryItem(py2_encode('Kedvenceim'), 'programs&type=frontspace&id=bookmarks', '', 'DefaultTVShows.png')
         self.addDirectoryItem(py2_encode('[COLOR red]Párosított eszközök törlése[/COLOR]'), 'paireddevices' , '', 'DefaultTVShows.png')
         self.addDirectoryItem(py2_encode('Keresés'), 'getsearches' , '', 'DefaultTVShows.png')
         datas = json.loads(net.request(desktop_url, headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
@@ -198,6 +201,10 @@ class navigator:
         processBlock = None
         if not blockid:
             allTags, processBlock = cache.get(getPrograms, self.cacheTime, ptype, pid)
+            if processBlock is None:
+                xbmcgui.Dialog().notification('RTL+', u'Nincs megjelen\u00EDthet\u0151 tartalom')
+                self.endDirectory()
+                return
             if len(allTags) > 1:
                 for tag in allTags:
                     self.addDirectoryItem(py2_encode(tag['title']), 'programs&type=%s&id=%s&blockid=%s' % (ptype, pid, tag['id']), '', 'DefaultTVShows.png')
@@ -496,6 +503,7 @@ class navigator:
         self.consentOnDevice(jwtToken)
         js = json.loads(net.request(profile_url % uid, headers={'authorization': 'Bearer %s' % jwtToken}))
         addon().setSetting('profileid', js[0]['uid'])
+        addon().setSetting('profilename', js[0]['username'])
         addon().setSetting('jwttoken', '')
         xbmcgui.Dialog().ok('RTL+', u'Sikeres bejelentkez\u00E9s!')
         xbmc.executebuiltin("Container.Refresh")
@@ -576,6 +584,7 @@ class navigator:
             r = net.request(profile_url % addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % jwtToken})
             js = json.loads(r)
             addon().setSetting('profileid', js[0]['uid'])
+            addon().setSetting('profilename', js[0]['username'])
             addon().setSetting('jwttoken', '')
             jwtToken = player.player().getJwtToken()
             accountOverview = json.loads(net.request(account_overview_url, headers={'authorization': 'Bearer %s' % jwtToken}))
@@ -616,6 +625,7 @@ class navigator:
             addon().setSetting('deviceid', '')
             addon().setSetting('jwttoken', '')
             addon().setSetting('profileid', '')
+            addon().setSetting('profilename', '')
             addon().setSetting('subscriptionname', '')
             dialog.ok('RTL+', u'Sikeresen kijelentkezt\u00E9l.\nAz adataid t\u00F6r\u00F6lve lettek a kieg\u00E9sz\u00EDt\u0151b\u0151l.')
             # az ActivateWindow builtin nem tölt újra, ha már a kiegészítő főoldalán állunk; a JSON-RPC változat igen
@@ -707,6 +717,32 @@ class navigator:
         xbmcplugin.setContent(syshandle, type)
         #xbmcplugin.addSortMethod(syshandle, xbmcplugin.SORT_METHOD_TITLE)
         xbmcplugin.endOfDirectory(syshandle, cacheToDisc=True)
+
+    def selectProfile(self):
+        try:
+            profiles = json.loads(net.request(profile_url % addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+        except:
+            xbmcgui.Dialog().ok('RTL+', u'Nem siker\u00FClt lek\u00E9rni a profilokat!')
+            return
+        current = addon().getSetting('profileid')
+        labels = []
+        preselect = -1
+        for index, profile in enumerate(profiles):
+            label = profile.get('username') or ''
+            if profile.get('is_kid'):
+                label += u' (gyerek)'
+            if profile['uid'] == current:
+                label = u'[COLOR gold]%s[/COLOR]' % label
+                preselect = index
+            labels.append(py2_encode(label))
+        index = xbmcgui.Dialog().select(u'RTL+ profil v\u00E1laszt\u00E1s', labels, preselect=preselect)
+        if index < 0 or profiles[index]['uid'] == current:
+            return
+        addon().setSetting('profileid', profiles[index]['uid'])
+        addon().setSetting('profilename', profiles[index].get('username') or '')
+        addon().setSetting('jwttoken', '')
+        cache.clear(confirm=False)  # a gyorsítótárazott listák (Folytasd, Kedvenceim) profilfüggők
+        xbmc.executebuiltin('Container.Refresh')
 
     def account(self):
         def date(ts):

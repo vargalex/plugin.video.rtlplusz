@@ -108,15 +108,15 @@ def timeout(function, *args, **table):
         return
 
 
-def clear(table=None):
+def clear(table=None, confirm=True):
     try:
-        xbmc.executebuiltin('Dialog.Close(busydialog)')
-
         if table == None: table = ['rel_list', 'rel_lib']
         elif not type(table) == list: table = [table]
 
-        yes = xbmcgui.Dialog().yesno('Gyorsítótár törlése', 'Biztos benne?')
-        if not yes: return
+        if confirm:
+            xbmc.executebuiltin('Dialog.Close(busydialog)')
+            yes = xbmcgui.Dialog().yesno('Gyorsítótár törlése', 'Biztos benne?')
+            if not yes: return
 
         dbcon = database.connect(cacheFile)
         dbcur = dbcon.cursor()
@@ -129,6 +129,7 @@ def clear(table=None):
             except:
                 pass
 
-        xbmcgui.Dialog().notification("RTL+", u'Folyamat befejez\u0151d\u00F6tt')
+        if confirm:
+            xbmcgui.Dialog().notification("RTL+", u'Folyamat befejez\u0151d\u00F6tt')
     except:
         pass

@@ -1,3 +1,5 @@
+[B]1.0.31[/B]
+- Profil váltás és Kedvenceim menüpont
 [B]1.0.30[/B]
 - Fiókom menüpont a fiók- és előfizetési adatokkal
 - Python 2 (régi Kodi) kompatibilitás javítása a bevezető-átugrásnál

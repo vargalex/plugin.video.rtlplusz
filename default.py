@@ -87,6 +87,9 @@ elif action == 'deletesearchhistory':
 elif action == 'account':
     navigator().account()
 
+elif action == 'profiles':
+    navigator().selectProfile()
+
 elif action == 'paireddevices':
     navigator().deleteDevice()
 
