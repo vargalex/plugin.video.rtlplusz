@@ -1,7 +1,8 @@
-[B]1.0.29[/B]
-- Bejelentkezés kóddal (One / Google / Apple / Facebook fiókhoz is)
+[B]1.0.30[/B]
 - Fiókom menüpont a fiók- és előfizetési adatokkal
 - Python 2 (régi Kodi) kompatibilitás javítása a bevezető-átugrásnál
+[B]1.0.29[/B]
+- Bejelentkezés kóddal (One / Google / Apple / Facebook fiókhoz is)
 [B]1.0.28[/B]
 - Élő adás hd stream preferálása
 [B]1.0.27[/B]
