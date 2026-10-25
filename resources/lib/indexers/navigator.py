@@ -19,7 +19,7 @@
 '''
 
 
-import os,sys,re,xbmc,xbmcgui,xbmcplugin,xbmcaddon,urllib,json,time,locale, uuid
+import os,sys,re,xbmc,xbmcgui,xbmcplugin,xbmcaddon,urllib,json,time,locale, uuid, datetime
 from resources.lib.modules import net, player, cache
 from  collections import OrderedDict
 
@@ -746,7 +746,11 @@ class navigator:
 
     def account(self):
         def date(ts):
-            return time.strftime('%Y.%m.%d.', time.localtime(int(ts)))
+            try:
+                return time.strftime('%Y.%m.%d.', time.localtime(int(ts)))
+            except (ValueError, OverflowError, OSError):
+                # 32 bites time_t (pl. CoreELEC 9 / Kodi 18) 2038 utáni dátumot nem tud; naptári számítás a helyi zónaeltolással
+                return (datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds=int(ts) - time.timezone)).strftime('%Y.%m.%d.')
         uid = addon().getSetting('userid')
         boxid = addon().getSetting('boxid')
         headers = {'authorization': 'Bearer %s' % player.player().getJwtToken()}

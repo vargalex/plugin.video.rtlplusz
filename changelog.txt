@@ -1,3 +1,5 @@
+[B]1.0.32[/B]
+- Fiókom: 2038 utáni lejárati dátum kiírása régi (32 bites) Kodi alatt
 [B]1.0.31[/B]
 - Profil váltás és Kedvenceim menüpont
 [B]1.0.30[/B]
