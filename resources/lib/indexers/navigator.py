@@ -104,7 +104,8 @@ class navigator:
             xbmcgui.Dialog().notification("RTL+", "Jelenlegi csomagod: %s" % subscriptionName)
         self.addDirectoryItem(py2_encode('Fiókom'), 'account' , '', 'DefaultUser.png')
         profileName = addon().getSetting('profilename')
-        self.addDirectoryItem(py2_encode('Profil váltás%s' % (' (%s)' % profileName if profileName else '')), 'profiles' , '', 'DefaultUser.png')
+        # nem mappa és nem lejátszható: a Kodi RunPlugin-ként futtatja, így a Container.Refresh a választás után tiszta helyzetben fut
+        self.addDirectoryItem(py2_encode('Profil váltás%s' % (' (%s)' % profileName if profileName else '')), 'profiles' , '', 'DefaultUser.png', isFolder=False, playable=False)
         self.addDirectoryItem(py2_encode('Kedvenceim'), 'programs&type=frontspace&id=bookmarks', '', 'DefaultTVShows.png')
         self.addDirectoryItem(py2_encode('[COLOR red]Párosított eszközök törlése[/COLOR]'), 'paireddevices' , '', 'DefaultTVShows.png')
         self.addDirectoryItem(py2_encode('Keresés'), 'getsearches' , '', 'DefaultTVShows.png')
@@ -689,7 +690,7 @@ class navigator:
 
         return search_text
 
-    def addDirectoryItem(self, name, query, thumb, icon, context=None, queue=False, isAction=True, isFolder=True, Fanart=None, meta=None, resume=None):
+    def addDirectoryItem(self, name, query, thumb, icon, context=None, queue=False, isAction=True, isFolder=True, Fanart=None, meta=None, resume=None, playable=True):
         url = '%s?action=%s' % (sysaddon, query) if isAction == True else query
         if thumb == '': thumb = icon
         cm = []
@@ -701,7 +702,8 @@ class navigator:
         if Fanart == None: Fanart = addonFanart
         item.setProperty('Fanart_Image', Fanart)
         if isFolder == False: 
-            item.setProperty('IsPlayable', 'true')
+            if playable:
+                item.setProperty('IsPlayable', 'true')
             if resume:
                 if resume["resumeTime"] > resume["totalTime"]-10:
                     item.setInfo('video', {'playcount': 1})

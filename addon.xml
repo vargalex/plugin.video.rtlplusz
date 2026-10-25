@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.rtlplusz" name="RTL+" version="1.0.32" provider-name="vargalex">
+<addon id="plugin.video.rtlplusz" name="RTL+" version="1.0.33" provider-name="vargalex">
 	<requires>
 		<import addon="script.module.inputstreamhelper" version="0.4.3"/>
 	</requires>
@@ -12,7 +12,7 @@
 		<language>hu</language>
 		<platform>all</platform>
 		<news>
-			- Fiókom: 2038 utáni lejárati dátum kiírása régi (32 bites) Kodi alatt
+			- Profil váltás után a főmenü azonnal frissül
 		</news>
 		<assets>
 		  <icon>icon.png</icon>
