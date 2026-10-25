@@ -104,6 +104,16 @@ class navigator:
             xbmcgui.Dialog().notification("RTL+", "Jelenlegi csomagod: %s" % subscriptionName)
         self.addDirectoryItem(py2_encode('Fiókom'), 'account' , '', 'DefaultUser.png')
         profileName = addon().getSetting('profilename')
+        if profileName == '' and addon().getSetting('profileid') != '':
+            # a funkció előtti bejelentkezésnél még nincs mentett név: egyszer lekérjük
+            try:
+                profiles = json.loads(net.request(profile_url % addon().getSetting('userid'), headers={'authorization': 'Bearer %s' % player.player().getJwtToken()}))
+                current = next((p for p in profiles if p['uid'] == addon().getSetting('profileid')), None)
+                if current:
+                    profileName = current.get('username') or ''
+                    addon().setSetting('profilename', profileName)
+            except:
+                xbmc.log('RTL+: error on fetching the profile name', xbmc.LOGERROR)
         # nem mappa és nem lejátszható: a Kodi RunPlugin-ként futtatja, így a Container.Refresh a választás után tiszta helyzetben fut
         self.addDirectoryItem(py2_encode('Profil váltás%s' % (' (%s)' % profileName if profileName else '')), 'profiles' , '', 'DefaultUser.png', isFolder=False, playable=False)
         self.addDirectoryItem(py2_encode('Kedvenceim'), 'programs&type=frontspace&id=bookmarks', '', 'DefaultTVShows.png')

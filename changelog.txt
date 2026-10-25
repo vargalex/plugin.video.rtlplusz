@@ -1,3 +1,5 @@
+[B]1.0.34[/B]
+- A profil neve korábbi bejelentkezésnél is megjelenik a főmenüben
 [B]1.0.33[/B]
 - Profil váltás után a főmenü azonnal frissül
 [B]1.0.32[/B]
